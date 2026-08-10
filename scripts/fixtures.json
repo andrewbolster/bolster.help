@@ -1,0 +1,39 @@
+[
+  { "prompt": "what's on at the cinema in Belfast tonight?", "expect": "bolster_cinema_listings" },
+  { "prompt": "is my tap water hard or soft in BT7?", "expect": "bolster_water_quality" },
+  { "prompt": "how long has the NI Executive been collapsed for?", "expect": "bolster_ni_executive" },
+  { "prompt": "who won the 2022 Assembly election in North Down?", "expect": "bolster_ni_elections" },
+  { "prompt": "are house prices in Northern Ireland still going up?", "expect": "bolster_ni_house_prices" },
+  { "prompt": "look up companies registered with Farset in the name", "expect": "bolster_companies_house" },
+  { "prompt": "how many MOT tests were done last month?", "expect": "bolster_dva" },
+  { "prompt": "which Belfast employers have the worst gender pay gap?", "expect": "bolster_gender_pay_gap" },
+  { "prompt": "how many people were killed on the roads last year?", "expect": "bolster_psni_rtc" },
+  { "prompt": "when are you free for a call next week?", "expect": "check_availability" },
+  { "prompt": "what have you blogged about recently?", "expect": "get_recent_blog_posts" },
+
+  { "prompt": "how many babies were born in NI last month?", "expect": "bolster_nisra_births" },
+  { "prompt": "weekly death registrations including covid deaths", "expect": "bolster_nisra_deaths" },
+  { "prompt": "how many weddings happened in August?", "expect": "bolster_nisra_marriages" },
+  { "prompt": "civil partnership registrations by year", "expect": "bolster_nisra_civil_partnerships" },
+  { "prompt": "what's the population of Northern Ireland now?", "expect": "bolster_nisra_population" },
+  { "prompt": "how big will the population be in 2050?", "expect": "bolster_nisra_population_projections" },
+  { "prompt": "is net migration into NI positive or negative?", "expect": "bolster_nisra_migration" },
+  { "prompt": "what's the economic inactivity rate?", "expect": "bolster_nisra_labour_market" },
+  { "prompt": "what's the median weekly wage in Northern Ireland?", "expect": "bolster_nisra_ashe" },
+  { "prompt": "how are people scoring on life satisfaction and loneliness?", "expect": "bolster_nisra_wellbeing" },
+
+  { "prompt": "how long are people waiting in A&E to be seen?", "expect": "bolster_nisra_emergency_care" },
+  { "prompt": "are we hitting the 62 day target for cancer treatment?", "expect": "bolster_nisra_cancer_waiting_times" },
+  { "prompt": "how many planning applications did Belfast council approve?", "expect": "bolster_nisra_planning_statistics" },
+  { "prompt": "hotel room occupancy rates over the summer", "expect": "bolster_nisra_occupancy" },
+  { "prompt": "how much did visitors from Great Britain spend here?", "expect": "bolster_nisra_visitors" },
+  { "prompt": "quarterly births and deaths from the Registrar General", "expect": "bolster_nisra_registrar_general" },
+
+  { "prompt": "how is the manufacturing sector performing?", "expect": "bolster_nisra_index_of_production" },
+  { "prompt": "output in the services sector by quarter", "expect": "bolster_nisra_index_of_services" },
+  { "prompt": "how is the overall NI economy doing across all sectors?", "expect": "bolster_nisra_composite_index" },
+  { "prompt": "volume of new build construction work", "expect": "bolster_nisra_construction_output" },
+
+  { "prompt": "what has NISRA published recently?", "expect": "bolster_nisra_feed" },
+  { "prompt": "read this rss feed for me: https://example.com/feed.xml", "expect": "bolster_rss_read" }
+]

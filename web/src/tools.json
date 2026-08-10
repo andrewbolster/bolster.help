@@ -1,0 +1,1940 @@
+{
+  "source": "https://mcp.bolster.online/mcp",
+  "fetchedAt": "2026-08-10",
+  "serverInfo": {
+    "name": "Andrew Bolster Resources",
+    "version": "3.4.2"
+  },
+  "tools": [
+    {
+      "name": "bolster_cinema_listings",
+      "description": "Get current movie listings from Cineworld cinema.\n\n    Retrieves movie showtimes and information for a specific Cineworld location.\n    Default location is Belfast (site code 117).\n\n    Examples:\n        bolster cinema-listings                     # Belfast, today\n        bolster cinema-listings --site-code 105    # Different location\n        bolster cinema-listings --date 2024-03-20  # Specific date",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "site_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 117,
+            "description": "Cineworld site code (default: 117 for Belfast) Default: 117."
+          },
+          "screening_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Screening date in YYYY-MM-DD format (default: today)"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_companies_house",
+      "description": "Query UK Companies House data for company information.\n\n    Search for companies by name or get information about companies that might be\n    associated with Farset Labs (Belfast hackerspace).\n\n    Examples:\n        bolster companies-house \"farset\"            # Search for companies with 'farset'\n        bolster companies-house farset              # Search without quotes\n        bolster companies-house --format json      # JSON output\n        bolster companies-house --save companies.csv  # Save results",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": ""
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_dva",
+      "description": "DVA (Driver & Vehicle Agency) Monthly Test Statistics.\n\n    Retrieves monthly test statistics from the NI Driver & Vehicle Agency including:\n\n    - Vehicle tests (MOT-style tests)\n    - Driver tests (practical driving tests)\n    - Theory tests\n\n    Data available from April 2014 to present.\n\n    Examples:\n        bolster dva --latest                          # All test types\n        bolster dva --latest --test-type vehicle      # Just vehicle tests\n        bolster dva --latest --year 2024              # Filter by year\n        bolster dva --latest --summary                # Quick summary dashboard\n        bolster dva --latest --format json --save tests.json\n\n    Source:\n        https://www.infrastructure-ni.gov.uk/publications/type/statistics",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "latest": {
+            "type": "boolean",
+            "description": "Get the most recent DVA data available"
+          },
+          "test_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "all",
+            "description": "Type of test statistics to retrieve (default: all) Choices: ('vehicle', 'driver', 'theory', 'all') Default: 'all'."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data by year"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary dashboard only Default: False."
+          }
+        },
+        "required": [
+          "latest"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_gender_pay_gap",
+      "description": "UK Gender Pay Gap Reporting Data.\n\n    All UK employers with 250+ employees are required to report their gender\n    pay gap annually. Data is available from 2017 to present.\n\n    Filter by postcode prefix to focus on a specific region — e.g. 'BT' for\n    Northern Ireland, 'EH' for Edinburgh, 'M' for Manchester.\n\n    Examples:\n        bolster gender-pay-gap --postcode-prefix BT           # NI employers, latest year\n        bolster gender-pay-gap --year 2024                    # All UK employers, 2024\n        bolster gender-pay-gap --all-years --postcode-prefix BT  # NI trend data\n        bolster gender-pay-gap --postcode-prefix BT --summary    # NI summary stats\n        bolster gender-pay-gap --year 2024 --format json --save gpg_2024.json\n\n    Source:\n        https://gender-pay-gap.service.gov.uk/viewing/download",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Reporting year (e.g. 2024). Defaults to most recent available. Default: None."
+          },
+          "all_years": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Fetch and combine all available years (2017–present). Default: False."
+          },
+          "postcode_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter to employers whose postcode starts with this prefix (e.g. 'BT' for NI, 'EH' for Edinburgh). Returns all UK employers if omitted. Default: None."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics only Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_get_precipitation",
+      "description": "Download UK precipitation data from the Met Office and save as an image.\n\n    This command retrieves precipitation map data from the UK Met Office API and saves\n    it as a PNG image. Requires a Met Office API key and valid order name.\n\n    Environment Variables:\n        MET_OFFICE_API_KEY: Your Met Office API key (required)\n        MAP_IMAGES_ORDER_NAME: Default order name for precipitation data (optional)\n\n    Examples:\n        # Download precipitation map for entire UK\n        bolster get-precipitation --order-name \"your-order-name\"\n\n        # Download for specific region (Northern Ireland)\n        bolster get-precipitation --bounding-box \"-8.5,54.0,-5.0,55.5\" --order-name \"your-order-name\"\n\n        # Save to custom filename\n        bolster get-precipitation --output \"ni_rain.png\" --order-name \"your-order-name\"",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "bounding_box": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Geographic bounding box as 'min_lon,min_lat,max_lon,max_lat' (e.g., '-10.0,49.0,2.0,61.0' for UK) Default: None."
+          },
+          "order_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Met Office API order name for precipitation data (or set MAP_IMAGES_ORDER_NAME env var) Default: None."
+          },
+          "output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "precipitation.png",
+            "description": "Output filename for the precipitation map image (default: precipitation.png) Default: 'precipitation.png'."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_ni_elections",
+      "description": "Get Northern Ireland Assembly election results (2016-2022).\n\n    Retrieve detailed election results including candidates, parties, constituencies,\n    and vote counts for NI Assembly elections.\n\n    Examples:\n        bolster ni-elections                        # All election results\n        bolster ni-elections --election-year 2022  # 2022 results only\n        bolster ni-elections --format json         # JSON output\n        bolster ni-elections --save elections.csv  # Save to file",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "election_year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "all",
+            "description": "Filter by election year (default: all) Choices: ('2016', '2017', '2022', 'all') Default: 'all'."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_ni_executive",
+      "description": "Get Northern Ireland Executive composition and dissolution data.\n\nRetrieves historical data about NI Executive periods including establishment\ndates, dissolution dates, duration, and interregnum periods.\n\nExamples:\n    bolster ni-executive                    # Display as table\n    bolster ni-executive --format json     # JSON output\n    bolster ni-executive --save executive.csv  # Save to CSV file",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_ni_house_prices",
+      "description": "Get Northern Ireland house price index data.\n\nDownloads and processes the latest NI house price statistics from official sources,\nincluding price trends by property type, region, and time period.\n\nExamples:\n    bolster ni-house-prices                     # Display as CSV\n    bolster ni-house-prices --format json      # JSON output\n    bolster ni-house-prices --save prices.csv  # Save to file",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_ashe",
+      "description": "NISRA Annual Survey of Hours and Earnings (ASHE) - Employee Earnings Statistics.\n\n    Annual survey measuring employee earnings in Northern Ireland across multiple dimensions\n    including employment type, sector, geography, occupation, and industry. Data from April\n    of each year, published in October.\n\n    Args:\n        metric: Type of earnings metric (weekly, hourly, or annual)\n        dimension: Data dimension to retrieve (timeseries, geography, or sector)\n        basis: Geographic basis (workplace or residence, for geography dimension only)\n        year: Filter data for specific year\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n        growth: Include year-on-year growth rates (timeseries only)\n\n    Examples:\n        Get weekly earnings timeseries (1997-2025)::\n\n            bolster nisra ashe\n\n        Get hourly earnings timeseries::\n\n            bolster nisra ashe --metric hourly\n\n        Get annual earnings timeseries::\n\n            bolster nisra ashe --metric annual\n\n        Get geographic earnings by workplace::\n\n            bolster nisra ashe --dimension geography\n\n        Get geographic earnings by residence::\n\n            bolster nisra ashe --dimension geography --basis residence\n\n        Get public vs private sector comparison::\n\n            bolster nisra ashe --dimension sector\n\n        Include year-on-year growth rates::\n\n            bolster nisra ashe --growth\n\n        Filter for specific year::\n\n            bolster nisra ashe --year 2025\n\n        Save to file::\n\n            bolster nisra ashe --save earnings.csv --format csv\n\n    Data Notes:\n        - Coverage: April 1997 - 2025 (annual, timeseries)\n        - Annual earnings: 1999 - 2025\n        - Sector breakdown: 2005 - 2025\n        - Reference period: April of each year\n        - Published: October each year\n        - Base: Employee jobs in Northern Ireland (not self-employed)\n\n    Metrics:\n        - weekly: Median gross weekly earnings (£)\n        - hourly: Median hourly earnings excluding overtime (£)\n        - annual: Median annual earnings (£)\n\n    Dimensions:\n        - timeseries: Historical trends by work pattern (Full-time/Part-time/All)\n        - geography: Earnings by 11 Local Government Districts\n        - sector: Public vs Private sector comparison (NI & UK)\n\n    Returns:\n        DataFrame with different columns depending on dimension:\n\n        Timeseries:\n            - year: Year\n            - work_pattern: Full-time, Part-time, or All\n            - median_*_earnings: Median earnings (£)\n            - earnings_yoy_growth: YoY % change (if --growth specified)\n\n        Geography:\n            - year: Year\n            - lgd: Local Government District name\n            - basis: workplace or residence\n            - median_weekly_earnings: Median weekly earnings (£)\n\n        Sector:\n            - year: Year\n            - location: Northern Ireland or United Kingdom\n            - sector: Public or Private\n            - median_weekly_earnings: Median weekly earnings (£)\n\n    Note:\n        Source: NISRA Economic & Labour Market Statistics Branch\n        https://www.nisra.gov.uk/statistics/work-pay-and-benefits/annual-survey-hours-and-earnings",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "metric": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "weekly",
+            "description": "Type of earnings metric (default: weekly) Choices: ('weekly', 'hourly', 'annual') Default: 'weekly'."
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Data dimension to retrieve Choices: ('timeseries', 'geography', 'sector', 'real-earnings', 'real-earnings-change', 'real-earnings-index', 'occupation-change', 'industry-change', 'pay-distribution', 'pay-distribution-by-classification')"
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "workplace",
+            "description": "Geographic basis (for geography dimension only) Choices: ('workplace', 'residence') Default: 'workplace'."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "growth": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Include year-on-year growth rates (timeseries only) Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_births",
+      "description": "NISRA Monthly Birth Registrations Statistics.\n\n    Retrieves monthly birth registration data for Northern Ireland including:\n    - Births by month of registration (when officially registered)\n    - Births by month of occurrence (when actually born)\n    - Breakdown by sex (Persons, Male, Female)\n\n    Birth registration data are based on mother's residence at time of birth.\n    Most births are registered within 42 days in Northern Ireland.\n\n    Examples:\n    ---------\n    Get latest births by registration date::\n\n        bolster nisra births --event-type registration\n\n    Get latest births by occurrence (actual birth date)::\n\n        bolster nisra births --event-type occurrence\n\n    Get both registration and occurrence data::\n\n        bolster nisra births --event-type both\n\n    Save registration data to file::\n\n        bolster nisra births --event-type registration --save births_reg.csv\n\n    Get data as JSON::\n\n        bolster nisra births --event-type both --format json\n\n    Force refresh cached data::\n\n        bolster nisra births --force-refresh\n\n    Notes:\n    ------\n    - Monthly time series from 2006 to present\n    - Final data for years up to and including 2024\n    - Provisional and subject to change for current year\n    - Registration data lags occurrence data by ~1-2 months\n    - COVID-19 Note: April-May 2020 registration data disrupted by lockdown\n      (registration offices closed), but occurrence data remains normal\n\n    Event Types\n    -----------\n    registration\n        Births by month they were officially registered\n        • Reflects administrative processing dates\n        • Can be affected by office closures (e.g., COVID-19)\n        • Latest data may be 1-2 months more recent than occurrence\n    occurrence\n        Births by month they actually occurred\n        • Reflects actual birth dates\n        • More stable measure of birth patterns\n        • Limited to births already registered\n    both\n        Returns both registration and occurrence data\n        • Useful for comparing registration patterns vs birth patterns\n        • Helps identify registration delays/backlogs\n\n    Returns:\n    --------\n    DataFrame\n        - month: First day of month (datetime)\n        - sex: Persons (total), Male, or Female\n        - births: Number of births\n\n    Source\n    ------\n    https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "both",
+            "description": "Event type: registration (when registered), occurrence (when born), or both (default: both) Choices: ('registration', 'occurrence', 'both') Default: 'both'."
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_cancer_waiting_times",
+      "description": "NISRA Cancer Waiting Times Statistics.\n\n    Retrieves cancer waiting times performance data for Northern Ireland from the\n    Department of Health, tracking progress against ministerial targets.\n\n    Targets: 14-day (urgent breast referrals), 31-day (decision to treat),\n    62-day (urgent GP referral), referrals (monthly breast volumes).\n    Dimensions: trust (HSC Trust breakdown) or tumour (tumour site breakdown).\n\n    Examples::\n\n        bolster nisra cancer-waiting-times\n        bolster nisra cancer-waiting-times --target 62-day --dimension tumour\n        bolster nisra cancer-waiting-times --target 14-day\n        bolster nisra cancer-waiting-times --year 2024 --summary\n        bolster nisra cancer-waiting-times --save cancer.csv\n\n    Key insights (as of 2025): 31-day target NI at ~90%; 62-day collapsed to ~32%;\n    14-day breast dropped from 77% (2020) to 17% (2025). Data from Q1 2008 to present.\n\n    Source: https://www.health-ni.gov.uk/articles/cancer-waiting-times",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "31-day",
+            "description": "Waiting time target to retrieve (default: 31-day) Choices: ('14-day', '31-day', '62-day', 'referrals') Default: '31-day'."
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "trust",
+            "description": "Data dimension: by HSC Trust or by Tumour Site (default: trust) Choices: ('trust', 'tumour') Default: 'trust'."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show NI-wide summary instead of raw data Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_civil_partnerships",
+      "description": "NISRA Monthly Civil Partnership Registrations Statistics.\n\n    Retrieves monthly civil partnership registration data for Northern Ireland.\n\n    Civil partnerships became legal in Northern Ireland in December 2005.\n    The data is published monthly with provisional figures for the current year\n    and final figures for previous years.\n\n    Examples:\n        Get latest civil partnerships data::\n\n            bolster nisra civil-partnerships --latest\n\n        Filter for a specific year::\n\n            bolster nisra civil-partnerships --latest --year 2024\n\n        Show annual summary::\n\n            bolster nisra civil-partnerships --latest --summary\n\n        Save to file::\n\n            bolster nisra civil-partnerships --latest --save civil_partnerships.csv\n\n    Data Notes:\n        - Monthly time series from 2006 to present\n        - Typically 80-120 civil partnerships per year\n        - Numbers generally lower than marriages (5-10 per month average)\n        - COVID-19 Note: 2020-2021 shows reduced registrations\n\n    Returns:\n        DataFrame with columns:\n            - date: First day of month (datetime)\n            - year: Year of registration\n            - month: Month name\n            - civil_partnerships: Number of civil partnership registrations\n\n    Note:\n        Source: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/civil-partnerships",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Get the most recent civil partnerships data Default: False."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics only Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_composite_index",
+      "description": "NISRA Northern Ireland Composite Economic Index (NICEI) - Experimental Economic Indicator.\n\n    Quarterly measure of NI economic performance tracking five key sectors:\n    Services, Production, Construction, Agriculture, and Public Sector.\n    Base period 2022=100, quarterly data from Q1 2006 to present.\n\n    Args:\n        dimension: Which dimension to retrieve (indices, contributions, or all)\n        table_deprecated: Deprecated alias for --dimension (use --dimension instead)\n        year: Filter data for specific year\n        quarter: Filter data for specific quarter (1-4)\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n\n    Examples:\n        Get latest NICEI indices::\n\n            bolster nisra composite-index\n\n        Get sector contributions to quarterly change::\n\n            bolster nisra composite-index --dimension contributions\n\n        Get all dimensions::\n\n            bolster nisra composite-index --dimension all\n\n        Filter for specific year::\n\n            bolster nisra composite-index --year 2024\n\n        Get specific quarter::\n\n            bolster nisra composite-index --year 2025 --quarter 2\n\n        Save to file::\n\n            bolster nisra composite-index --save nicei.csv\n\n    Data Notes:\n        - Coverage: Q1 2006 - Q2 2025 (quarterly)\n        - Base period: 2022 = 100\n        - Experimental statistic subject to revision\n        - Published ~3 months after quarter end\n        - Not seasonally adjusted\n\n    Tables:\n        indices: NICEI and component indices by quarter (Table 1)\n            • Overall NICEI, private/public sector breakdowns\n            • Sectoral indices: Services, Production, Construction, Agriculture\n            • Quarterly time series from Q1 2006\n\n        contributions: Sector contributions to quarterly change (Table 11)\n            • How much each sector contributed to NICEI quarterly change\n            • Percentage point contributions\n            • Identifies main drivers of economic growth/decline\n\n        all: All available tables\n\n    Returns:\n        DataFrame with columns varying by table type:\n            - date: Quarter start date\n            - quarter: Quarter (Q1-Q4)\n            - year: Year\n            - Various index/contribution columns depending on table\n\n    Note:\n        Source: NISRA Economic & Labour Market Statistics Branch\n        https://www.nisra.gov.uk/statistics/economic-output-statistics/ni-composite-economic-index",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "indices",
+            "description": "Which dimension to retrieve (default: indices) Choices: ('indices', 'contributions', 'all') Default: 'indices'."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific quarter (1-4)"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_construction_output",
+      "description": "NISRA Construction Output Statistics - Quarterly Economic Indicator.\n\n    Measures volume and value of construction output in Northern Ireland across\n    all work, new work, and repair & maintenance. Chained volume measure data\n    (base year 2022=100) from Q2 2000 to present.\n\n    Args:\n        year: Filter data for specific year\n        quarter: Filter data for specific quarter (e.g., 'Q1', 'Q2')\n        start_year: Start year for summary statistics\n        end_year: End year for summary statistics\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n        summary: Show summary statistics only\n        growth: Include year-on-year growth rates\n\n    Examples:\n        Get all Construction Output data::\n\n            bolster nisra construction-output\n\n        Filter for specific year::\n\n            bolster nisra construction-output --year 2024\n\n        Get specific quarter::\n\n            bolster nisra construction-output --year 2025 --quarter Q2\n\n        Show summary statistics for 2020-2025::\n\n            bolster nisra construction-output --start-year 2020 --summary\n\n        Include year-on-year growth rates::\n\n            bolster nisra construction-output --growth\n\n        Save to file::\n\n            bolster nisra construction-output --save construction.csv\n\n    Data Notes:\n        - Coverage: Q2 2000 - Q2 2025 (quarterly)\n        - Base year: 2022 = 100 (chained volume measure)\n        - All Work: Non-seasonally adjusted (NSA)\n        - New Work: Non-seasonally adjusted (NSA)\n        - Repair & Maintenance: Seasonally adjusted (SA)\n        - Published ~3 months after quarter end\n\n    Returns:\n        DataFrame with columns:\n            - date: First day of quarter\n            - quarter: Quarter code (Q1, Q2, Q3, Q4)\n            - year: Year\n            - all_work_index: Total construction output index (NSA)\n            - new_work_index: New construction work index (NSA)\n            - repair_maintenance_index: Repair & maintenance index (SA)\n            - \\*_yoy_growth: YoY % change (if --growth specified)\n\n    Note:\n        Source: NISRA Economic & Labour Market Statistics Branch\n        https://www.nisra.gov.uk/statistics/economic-output/construction-output-statistics",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific quarter (e.g., 'Q1', 'Q2')"
+          },
+          "start_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Start year for summary statistics"
+          },
+          "end_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "End year for summary statistics"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics only Default: False."
+          },
+          "growth": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Include year-on-year growth rates Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_deaths",
+      "description": "NISRA Weekly Deaths Statistics.\n\n    Retrieves weekly death registrations in Northern Ireland with breakdowns by:\n    - Totals (COVID-19 deaths, flu/pneumonia deaths, excess deaths)\n    - Demographics (age, sex)\n    - Geography (Local Government Districts)\n    - Place of death (hospital, home, care home, etc.)\n\n    Examples:\n    ---------\n    Get COVID-19 and flu/pneumonia deaths::\n\n        bolster nisra deaths --dimension totals\n\n    Get latest demographics breakdown as CSV::\n\n        bolster nisra deaths --dimension demographics\n\n    Get all dimensions as JSON::\n\n        bolster nisra deaths --dimension all --format json\n\n    Save totals data to analyze COVID trends::\n\n        bolster nisra deaths --dimension totals --save deaths_totals.csv\n\n    Force refresh cached data::\n\n        bolster nisra deaths --force-refresh\n\n    Notes:\n    ------\n    - Based on registration date, not death occurrence date\n    - Most deaths registered within 5 days in Northern Ireland\n    - Weekly files are provisional and subject to revision\n    - Dimensions are NOT cross-tabulated in source data\n    - COVID-19/flu deaths are NOT broken down by age/sex in source\n    - Excess deaths calculated using multiple methodologies\n\n    Dimensions\n    ----------\n    totals\n        Weekly totals with COVID-19, flu/pneumonia, excess deaths\n    demographics\n        Age and sex breakdown (Total/Male/Female × age ranges)\n    geography\n        Local Government Districts (11 LGDs)\n    place\n        Place of death (Hospital, Home, Care Home, Hospice, Other)\n    all\n        All dimensions (returns separate tables)\n\n    Source\n    ------\n    https://www.nisra.gov.uk/statistics/death-statistics/weekly-death-registrations-northern-ireland",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "all",
+            "description": "Which dimension to retrieve (default: all) Choices: ('totals', 'demographics', 'geography', 'place', 'all') Default: 'all'."
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_emergency_care",
+      "description": "NISRA Emergency Care Waiting Times Statistics.\n\n    Monthly A&E performance data for Northern Ireland measuring the 4-hour\n    target (95% of attendances seen, treated, admitted or discharged within\n    4 hours). Data by hospital department and HSC Trust, April 2008 to present.\n\n    Attendance Types:\n        Type 1 - Major A&E departments (full A&E)\n        Type 2 - Single specialty emergency departments\n        Type 3 - Minor injury units and urgent treatment centres\n\n    HSC Trusts:\n        Belfast, Northern, South Eastern, Southern, Western\n\n    Examples:\n    ---------\n    Get all data as CSV::\n\n        bolster nisra emergency-care\n\n    Get Type 1 performance for Belfast Trust::\n\n        bolster nisra emergency-care --type 1 --trust Belfast\n\n    Get 2024 data as JSON::\n\n        bolster nisra emergency-care --year 2024 --format json\n\n    Save to file::\n\n        bolster nisra emergency-care --save emergency.csv\n\n    Key Insights (as of 2026)\n    -------------------------\n    - 4-hour target (95%): NI performance has declined significantly since 2008\n    - Type 1 performance well below target; Type 3 minor injury units perform best\n    - Belfast RVH and Altnagelvin consistently the busiest Type 1 sites\n\n    Source\n    ------\n    https://www.health-ni.gov.uk/articles/emergency-care-waiting-times",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "trust": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter by HSC Trust name (e.g. Belfast)"
+          },
+          "attendance_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter by attendance type (1=major A&E, 2=single specialty, 3=MIU/UTC) Choices: ('1', '2', '3')"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for a specific calendar year"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_feed",
+      "description": "Show recent NISRA publications from RSS feed.\n\n    Useful for discovering new datasets and checking for updates.\n\n    Examples:\n        bolster nisra feed                    # Recent 20 publications\n\n        bolster nisra feed -n 50              # More entries\n\n        bolster nisra feed -f tourism         # Filter by title\n\n        bolster nisra feed --days 7           # Last week only\n\n        bolster nisra feed --check-coverage   # Show implementation status",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 20,
+            "description": "Number of entries to show (default: 20) Default: 20."
+          },
+          "title_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter entries by title (case-insensitive)"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Show entries from last N days"
+          },
+          "check_coverage": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show which datasets have modules implemented Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_index_of_production",
+      "description": "NISRA Index of Production (IOP) - Quarterly Economic Indicator.\n\n    Measures output in Northern Ireland's production industries, including manufacturing,\n    mining, and utilities. Seasonally adjusted quarterly data from Q1 2005 to present.\n\n    Args:\n        year: Filter data for specific year\n        quarter: Filter data for specific quarter (e.g., 'Q1', 'Q2')\n        start_year: Start year for summary statistics\n        end_year: End year for summary statistics\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n        summary: Show summary statistics only\n        growth: Include year-on-year growth rates\n\n    Examples:\n        Get all Index of Production data::\n\n            bolster nisra index-of-production\n\n        Filter for specific year::\n\n            bolster nisra index-of-production --year 2024\n\n        Get specific quarter::\n\n            bolster nisra index-of-production --year 2025 --quarter Q3\n\n        Show summary statistics::\n\n            bolster nisra index-of-production --start-year 2020 --summary\n\n        Include growth rates::\n\n            bolster nisra index-of-production --growth\n\n        Save as JSON::\n\n            bolster nisra index-of-production --format json --save iop.json\n\n    Data Notes:\n        - Coverage: Q1 2005 - Q3 2025 (quarterly)\n        - Seasonally adjusted values\n        - Index values (100 = base period)\n        - Includes NI and UK comparator data\n        - Production industries have faced long-term challenges\n\n    Returns:\n        DataFrame with columns:\n            - date: First day of quarter\n            - quarter: Quarter code (Q1, Q2, Q3, Q4)\n            - year: Year\n            - ni_index: Northern Ireland production index value\n            - uk_index: UK production index value\n            - ni_growth_rate: YoY % change (if --growth specified)\n            - uk_growth_rate: YoY % change (if --growth specified)\n\n    Note:\n        Source: NISRA Economic & Labour Market Statistics Branch\n        https://www.nisra.gov.uk/statistics/economic-output/index-production",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific quarter (e.g., 'Q1', 'Q2')"
+          },
+          "start_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Start year for summary statistics"
+          },
+          "end_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "End year for summary statistics"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics only Default: False."
+          },
+          "growth": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Include year-on-year growth rates Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_index_of_services",
+      "description": "NISRA Index of Services (IOS) - Quarterly Economic Indicator.\n\n    Measures output in Northern Ireland's services sector, including business services,\n    wholesale/retail trade, transport, and other services. Seasonally adjusted quarterly\n    data from Q1 2005 to present.\n\n    Args:\n        year: Filter by specific year\n        quarter: Filter by specific quarter (Q1, Q2, Q3, Q4)\n        start_year: Start year for filtering\n        end_year: End year for filtering\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n        summary: Show summary statistics only\n        growth: Include year-on-year growth rates\n\n    Examples:\n        Get all Index of Services data::\n\n            bolster nisra index-of-services\n\n        Filter for specific year::\n\n            bolster nisra index-of-services --year 2024\n\n        Get specific quarter::\n\n            bolster nisra index-of-services --year 2025 --quarter Q3\n\n        Show summary statistics for 2020-2025::\n\n            bolster nisra index-of-services --start-year 2020 --summary\n\n        Include year-on-year growth rates::\n\n            bolster nisra index-of-services --growth\n\n        Save to file::\n\n            bolster nisra index-of-services --save ios.csv\n\n    Data Notes:\n        - Coverage: Q1 2005 - Q3 2025 (quarterly)\n        - Seasonally adjusted values\n        - Index values (100 = base period)\n        - Includes NI and UK comparator data\n        - Published ~3 months after quarter end\n\n    Returns:\n        DataFrame with columns:\n            - date: First day of quarter\n            - quarter: Quarter code (Q1, Q2, Q3, Q4)\n            - year: Year\n            - ni_index: Northern Ireland services index value\n            - uk_index: UK services index value\n            - ni_growth_rate: YoY % change (if --growth specified)\n            - uk_growth_rate: YoY % change (if --growth specified)\n\n    Note:\n        Source: NISRA Economic & Labour Market Statistics Branch\n        https://www.nisra.gov.uk/statistics/economic-output/index-services",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific quarter (e.g., 'Q1', 'Q2')"
+          },
+          "start_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Start year for summary statistics"
+          },
+          "end_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "End year for summary statistics"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics only Default: False."
+          },
+          "growth": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Include year-on-year growth rates Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_labour_market",
+      "description": "NISRA Labour Force Survey Statistics.\n\n    Retrieves Labour Force Survey (LFS) data for Northern Ireland including:\n    - Employment by age band and sex (quarterly)\n    - Economic inactivity rates and numbers with historical time series (quarterly)\n    - Employment by Local Government District (annual)\n\n    The LFS is a sample survey of households providing labour force statistics using\n    internationally agreed concepts and definitions.\n\n    Examples:\n    ---------\n    Get latest employment data by age and sex::\n\n        bolster nisra labour-market --dimension employment\n\n    Get economic inactivity time series (2012-2025)::\n\n        bolster nisra labour-market --dimension economic_inactivity\n\n    Get employment by Local Government District (annual)::\n\n        bolster nisra labour-market --dimension lgd\n\n    Get all dimensions as JSON::\n\n        bolster nisra labour-market --dimension all --format json\n\n    Save employment data to analyze age distribution::\n\n        bolster nisra labour-market --dimension employment --save employment.csv\n\n    Force refresh cached data::\n\n        bolster nisra labour-market --force-refresh\n\n    Notes:\n    ------\n    - Survey data with sampling variability (see NISRA notes on confidence intervals)\n    - Quarterly publications covering 3-month rolling periods\n    - Some estimates based on small samples (indicated by shading in source)\n    - Estimates <3 suppressed for disclosure control\n    - Not seasonally adjusted\n    - Working age: 16-64 for both males and females\n\n    Tables\n    ------\n    employment\n        Employment by age band and sex (Table 2.15)\n        • Percentage distribution across age groups\n        • Total employment numbers by sex\n        • Quarterly snapshot data\n    economic_inactivity\n        Economic inactivity by sex (Table 2.21)\n        • Numbers economically inactive by sex\n        • Economic inactivity rates (percentages)\n        • Historical time series (2012-2025 for same quarter)\n        • Allows year-over-year comparisons\n    lgd\n        Employment by Local Government District (Table 1.16a)\n        • Employment statistics for all 11 NI LGDs\n        • Population 16+, employment rates, economic activity\n        • Annual data only (published separately)\n    all\n        All quarterly tables (excludes LGD annual data)\n\n    Definitions\n    -----------\n    Employed\n        Did ≥1 hour paid work in reference week, or has job temporarily away from\n    Unemployed\n        Not employed, actively seeking work, available to start within 2 weeks\n    Economically Inactive\n        Not employed and not seeking work (students, retired, caring for\n        family, long-term sick/disabled, discouraged workers, etc.)\n\n    Source\n    ------\n    https://www.nisra.gov.uk/statistics/labour-market-and-social-welfare",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "all",
+            "description": "Which dimension to retrieve (default: all) Choices: ('employment', 'economic_inactivity', 'lgd', 'all') Default: 'all'."
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_marriages",
+      "description": "NISRA Monthly Marriage Registrations Statistics.\n\n    Retrieves monthly marriage registration data for Northern Ireland.\n\n    Marriage registrations represent when the marriage was registered, not when the\n    ceremony occurred. The data is published monthly with provisional figures for the\n    current year and final figures for previous years.\n\n    Examples:\n    ---------\n    Get latest marriages data::\n\n        bolster nisra marriages\n\n    Filter for a specific year::\n\n        bolster nisra marriages --year 2024\n\n    Save to file::\n\n        bolster nisra marriages --save marriages.csv\n\n    Get data as JSON::\n\n        bolster nisra marriages --format json\n\n    Force refresh cached data::\n\n        bolster nisra marriages --force-refresh\n\n    Notes:\n    ------\n    - Monthly time series from 2006 to present\n    - Final data for years up to and including 2024\n    - Provisional and subject to change for current year\n    - COVID-19 Note: 2020 shows dramatic impact on marriages\n      (April: 14, May: 4 marriages during strict lockdown)\n\n    Seasonal Patterns\n    -----------------\n    Summer months (June-September) are peak wedding season:\n    • August typically has the highest number of marriages\n    • June-September account for ~40% of annual marriages\n    • January-February typically have the lowest numbers\n\n    Returns:\n    --------\n    DataFrame\n        - date: First day of month (datetime)\n        - year: Year of registration\n        - month: Month name\n        - marriages: Number of marriage registrations\n\n    Source\n    ------\n    https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/marriages",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_migration",
+      "description": "NISRA Migration Estimates (Derived from Demographic Components).\n\n    Calculates net migration using the demographic accounting equation:\n        Net Migration = Population Change - Natural Change\n        Net Migration = ΔPopulation - (Births - Deaths)\n\n    This combines data from:\n    - Mid-year population estimates\n    - Monthly birth registrations (occurrence data)\n    - Historical death registrations\n\n    The demographic equation must hold: Pop(t+1) = Pop(t) + Births - Deaths + Migration\n\n    Args:\n        year: Filter data for specific year\n        start_year: Start year for data range\n        end_year: End year for data range\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n        summary: Show summary statistics only\n\n    Examples:\n        Get all migration data::\n\n            bolster nisra migration\n\n        Filter for specific year::\n\n            bolster nisra migration --year 2024\n\n        Show summary statistics for 2010-2024::\n\n            bolster nisra migration --start-year 2010 --summary\n\n        Save to file::\n\n            bolster nisra migration --save migration.csv\n\n        Get data as JSON::\n\n            bolster nisra migration --format json\n\n        Force refresh all source data::\n\n            bolster nisra migration --force-refresh\n\n    Data Notes:\n        - Coverage: 2011-2024 (limited by historical deaths data)\n        - Derived migration includes net effect of international and internal migration\n        - Also captures measurement error and timing differences between sources\n        - Demographic equation validated for all years (ΔPop = Births - Deaths + Migration)\n\n    Key Findings:\n        - 2023: Highest net immigration (+7,225)\n        - 2024: Strong immigration continues (+6,107)\n        - 2013: Highest net emigration (-2,124)\n        - Average 2011-2024: +2,082 per year\n        - 9 years with net immigration, 5 with net emigration\n\n    Returns:\n        DataFrame with columns:\n            - year: Year\n            - population_start, population_end: Mid-year population estimates\n            - births, deaths: Annual totals\n            - natural_change: Births - Deaths\n            - population_change: Year-over-year change\n            - net_migration: Derived migration estimate\n            - migration_rate: Per 1,000 population\n\n    Note:\n        Combines three NISRA data sources:\n            - Population: https://www.nisra.gov.uk/statistics/people-and-communities/population\n            - Births: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/births\n            - Deaths: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/deaths",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "start_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Start year for summary statistics"
+          },
+          "end_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "End year for summary statistics"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics only Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_occupancy",
+      "description": "NISRA Monthly Accommodation Occupancy Statistics.\n\n    Retrieves monthly occupancy data for Northern Ireland from the Tourism\n    Statistics Branch. Supports both hotel and SSA (Small Service Accommodation\n    - B&Bs, guest houses) data.\n\n    Parameters\n    ----------\n    accommodation : str\n        Type of accommodation: ``hotel`` (Hotels, 2011-present, ~65% avg occupancy),\n        ``ssa`` (Small Service Accommodation: B&Bs/guest houses, 2013-present, ~33% avg),\n        or ``combined`` (both types with accommodation_type column).\n    data_type : str\n        Data to retrieve: ``rates`` (room and bed occupancy rates, 0-1 scale)\n        or ``sold`` (number of rooms and beds sold monthly).\n\n    .. rubric:: Examples\n\n    Get latest hotel occupancy rates (default)::\n\n        bolster nisra occupancy --latest\n\n    Get SSA (B&B/guest house) occupancy::\n\n        bolster nisra occupancy --latest --accommodation ssa\n\n    Get combined data with accommodation type::\n\n        bolster nisra occupancy --latest --accommodation combined\n\n    Compare hotel vs SSA by year::\n\n        bolster nisra occupancy --compare\n\n    Get rooms/beds sold data::\n\n        bolster nisra occupancy --latest --data-type sold\n\n    Filter for a specific year::\n\n        bolster nisra occupancy --latest --year 2024\n\n    Show summary by year::\n\n        bolster nisra occupancy --latest --summary\n\n    Save to file::\n\n        bolster nisra occupancy --latest --save occupancy.csv\n\n    .. rubric:: Notes\n\n    - Hotel data: 2011-present (~65% average room occupancy)\n    - SSA data: 2013-present (~33% average room occupancy)\n    - Room occupancy is typically higher than bed occupancy\n    - COVID-19 Note: 2020-2021 shows dramatic impact on tourism\n      (all accommodation closed March-July 2020, Oct-Dec 2020, Jan-May 2021)\n\n    .. rubric:: Seasonal Patterns\n\n    Summer months (June-September) are peak tourism season:\n\n    - August typically has the highest occupancy (~80% hotel, ~55% SSA)\n    - July-September are consistently strong\n    - January-February typically have the lowest occupancy\n\n    .. rubric:: Returns\n\n    DataFrame (rates):\n\n    - date: First day of month (datetime)\n    - year: Year\n    - month: Month name\n    - room_occupancy: Room occupancy rate (0-1)\n    - bed_occupancy: Bed occupancy rate (0-1)\n    - accommodation_type: (combined only) 'hotel' or 'ssa'\n\n    DataFrame (sold):\n\n    - date: First day of month (datetime)\n    - year: Year\n    - month: Month name\n    - rooms_sold: Number of rooms sold\n    - beds_sold: Number of beds sold\n\n    .. rubric:: Source\n\n    https://www.nisra.gov.uk/statistics/tourism/occupancy-surveys",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Get the most recent occupancy data Default: False."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "accommodation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "hotel",
+            "description": "Accommodation type: hotel, ssa (B&Bs/guest houses), or combined Choices: ('hotel', 'ssa', 'combined') Default: 'hotel'."
+          },
+          "data_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "rates",
+            "description": "Data type: rates (occupancy rates) or sold (rooms/beds sold) Choices: ('rates', 'sold') Default: 'rates'."
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics only Default: False."
+          },
+          "compare": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Compare hotel vs SSA occupancy by year Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_planning_statistics",
+      "description": "NISRA Planning Activity Statistics (Department for Infrastructure).\n\n    Quarterly Northern Ireland planning application statistics: applications\n    received, decided, approved, withdrawn, and approval rate. NI-wide series\n    goes back to Q1 2002/03; council-area breakdowns cover recent quarters\n    across the 11 local councils.\n\n    Examples:\n        Quarterly NI-wide series (default)::\n\n            bolster nisra planning-statistics\n\n        Per-council quarterly data for the latest financial year::\n\n            bolster nisra planning-statistics --dimension council --financial-year 2024/25\n\n        Annual financial-year totals::\n\n            bolster nisra planning-statistics --dimension annual\n\n        Council summary for 2024/25::\n\n            bolster nisra planning-statistics --dimension council-summary --financial-year 2024/25\n\n        Save to file::\n\n            bolster nisra planning-statistics --save planning.csv\n\n    Source:\n        https://www.infrastructure-ni.gov.uk/articles/planning-activity-statistics",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "ni",
+            "description": "Which view to retrieve: 'ni' (quarterly NI-wide, default), 'council' (per-council quarterly), 'annual' (NI financial-year totals), 'council-summary' (per-council aggregate). Choices: ('ni', 'council', 'annual', 'council-summary') Default: 'ni'."
+          },
+          "financial_year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter by financial year, e.g. '2024/25'"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show summary statistics instead of full data Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_population",
+      "description": "NISRA Mid-Year Population Estimates.\n\n    Retrieves annual mid-year population estimates for Northern Ireland with breakdowns by:\n    - Geography (NI overall, Parliamentary Constituencies, Health and Social Care Trusts)\n    - Sex (All persons, Males, Females)\n    - Age (5-year age bands: 00-04, 05-09, ..., 90+)\n    - Year (1971-present for NI overall, 2021-present for sub-geographies)\n\n    Mid-year estimates are referenced to June 30th of each year.\n\n    Examples:\n    ---------\n    Get latest NI overall population::\n\n        bolster nisra population\n\n    Get all geographic areas::\n\n        bolster nisra population --area all\n\n    Get specific year::\n\n        bolster nisra population --year 2024\n\n    Get Parliamentary Constituencies::\n\n        bolster nisra population --area \"Parliamentary Constituencies (2024)\"\n\n    Save to file::\n\n        bolster nisra population --save population.csv\n\n    Get as JSON::\n\n        bolster nisra population --format json\n\n    Notes:\n    ------\n    - Published annually ~6 months after reference date\n    - Reference date: June 30th of each year\n    - Historical data for NI overall from 1971\n    - Sub-geography data from 2021 onwards\n    - Age bands: 5-year groups (00-04, 05-09, ..., 85-89, 90+)\n    - Also includes custom age bands and broad age groups\n\n    Geographic Areas\n    ----------------\n    Northern Ireland\n        NI overall (1971-present)\n    Parliamentary Constituencies (2024)\n        2024 parliamentary constituencies (2021-present)\n    Health and Social Care Trusts\n        Health & Social Care Trusts (2021-present)\n    all\n        All geographic breakdowns\n\n    Returns:\n    --------\n    DataFrame\n        - area, area_code, area_name: Geographic identifiers\n        - year: Reference year (mid-year estimate as of June 30th)\n        - sex: All persons, Males, or Females\n        - age_5: 5-year age band\n        - age_band, age_broad: Alternative age groupings\n        - population: Mid-year estimate\n\n    Source\n    ------\n    https://www.nisra.gov.uk/statistics/people-and-communities/population",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "Northern Ireland",
+            "description": "Geographic area (default: Northern Ireland) Choices: ('all', 'Northern Ireland', 'Parliamentary Constituencies (2024)', 'Health and Social Care Trusts') Default: 'Northern Ireland'."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Specific year to retrieve (leave blank for all years)"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_population_projections",
+      "description": "NISRA Population Projections for Northern Ireland.\n\n    By default returns NI-level principal projections (2024-based, to 2074).\n    Use --lgd to get LGD sub-area projections (2022-based, 11 districts, to 2047).\n\n    \\b\n    Examples:\n        bolster nisra population-projections\n        bolster nisra population-projections --start-year 2025 --end-year 2035\n        bolster nisra population-projections --lgd\n        bolster nisra population-projections --lgd --lgd-name Belfast\n        bolster nisra population-projections --lgd --lgd-name N09000003",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "lgd": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show LGD sub-area projections instead of NI-level Default: False."
+          },
+          "lgd_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter LGD projections to a specific LGD name or code Default: None."
+          },
+          "start_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter projections from this year (inclusive) Default: None."
+          },
+          "end_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter projections to this year (inclusive) Default: None."
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Bypass cache and download fresh data Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_registrar_general",
+      "description": "NISRA Registrar General Quarterly Tables.\n\n    Quarterly vital statistics for Northern Ireland including births, deaths,\n    marriages, civil partnerships, and LGD-level breakdowns. Data available\n    from Q1 2009 to present.\n\n    Args:\n        latest: Get the most recent quarterly tables data\n        quarterly: Show full quarterly time series\n        lgd: Show LGD (Local Government District) breakdown\n        validate: Run cross-validation against monthly data\n        dimension: Which dimension to retrieve (births, deaths, or all)\n        table_deprecated: Deprecated alias for --dimension (use --dimension instead)\n        year: Filter data for specific year\n        quarter: Filter data for specific quarter (1-4)\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n\n    Tables Available:\n        births: Quarterly births, stillbirths, birth rates\n        deaths: Quarterly deaths, marriages, civil partnerships, death rates\n        lgd: Current quarter breakdown by Local Government District\n\n    Examples:\n        Get latest quarterly data (all tables)::\n\n            bolster nisra registrar-general --latest\n\n        Get quarterly births time series::\n\n            bolster nisra registrar-general --quarterly --dimension births\n\n        Get LGD breakdown for current quarter::\n\n            bolster nisra registrar-general --lgd\n\n        Cross-validate quarterly vs monthly data::\n\n            bolster nisra registrar-general --validate\n\n        Get specific year/quarter::\n\n            bolster nisra registrar-general --quarterly --year 2024 --quarter 1\n\n        Save to file::\n\n            bolster nisra registrar-general --quarterly --save quarterly.csv\n\n    Cross-Validation:\n        The --validate option compares quarterly totals against aggregated\n        monthly data from the births and marriages modules. Differences\n        within 2% are considered acceptable (timing of registrations).\n\n    Data Notes:\n        - Quarterly data from Q1 2009 to present\n        - Updated approximately 6 weeks after each quarter ends\n        - 11 Local Government Districts in NI\n        - Birth/death rates per 1,000 population\n\n    Returns:\n        DataFrame with columns varying by table type:\n            - quarter: Quarter (Q1, Q2, Q3, Q4)\n            - year: Year\n            - Various statistical columns depending on table\n\n    Note:\n        Source: https://www.nisra.gov.uk/statistics/births-deaths-and-marriages/registrar-general-quarterly-report",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Get the most recent quarterly tables data Default: False."
+          },
+          "quarterly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show full quarterly time series Default: False."
+          },
+          "lgd": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show LGD (Local Government District) breakdown Default: False."
+          },
+          "validate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Run cross-validation against monthly data Default: False."
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "all",
+            "description": "Which dimension to retrieve (default: all) Choices: ('births', 'deaths', 'all') Default: 'all'."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific quarter (1-4)"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_visitors",
+      "description": "NISRA Quarterly Visitor Statistics (Trips, Nights, Expenditure).\n\n    Retrieves quarterly visitor statistics for Northern Ireland from NISRA,\n    showing overnight trips, nights spent, and visitor expenditure by market origin.\n\n    Args:\n        latest: Get the most recent visitor statistics data\n        market: Filter by visitor market (gb, europe, north-america, overseas, roi, ni, total, all)\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n        summary: Show summary statistics only\n        compare: Compare domestic vs external visitors\n\n    Markets:\n        * gb - Great Britain (largest external market)\n        * europe - Other Europe (excluding GB and ROI)\n        * north-america - North America (USA and Canada)\n        * overseas - Other overseas (Asia, Oceania, etc.)\n        * roi - Republic of Ireland\n        * ni - NI Residents (domestic tourism)\n        * total - All markets combined\n        * all - Show all markets (default)\n\n    Examples:\n        Get latest visitor statistics::\n\n            bolster nisra visitors --latest\n\n        Show market summary with per-trip metrics::\n\n            bolster nisra visitors --latest --summary\n\n        Compare domestic vs external visitors::\n\n            bolster nisra visitors --latest --compare\n\n        Get Great Britain visitors only::\n\n            bolster nisra visitors --latest --market gb\n\n        Save to file::\n\n            bolster nisra visitors --latest --save visitors.csv\n\n    Data Insights:\n        - GB is typically the largest external market (~30% of trips, ~38% of spend)\n        - ROI visitors growing rapidly (up 32% trips, 68% spend YoY in 2025)\n        - NI residents account for ~31% of trips but only ~17% of expenditure\n        - External visitors spend 2-4x more per trip than NI residents\n        - \"Other Overseas\" (long-haul) has highest spend per trip (~£540)\n\n    Note:\n        Source: https://www.nisra.gov.uk/publications/quarterly-tourism-statistics-publications",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Get the most recent visitor statistics Default: False."
+          },
+          "market": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "all",
+            "description": "Filter by visitor origin market Choices: ('all', 'gb', 'europe', 'north-america', 'overseas', 'roi', 'ni', 'total') Default: 'all'."
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Show market summary with derived metrics Default: False."
+          },
+          "compare": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Compare domestic vs external visitors Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_nisra_wellbeing",
+      "description": "NISRA Individual Wellbeing Statistics.\n\n    Retrieves individual wellbeing statistics for Northern Ireland, measuring\n    subjective wellbeing across the population aged 16 and over.\n\n    Args:\n        dimension: Which dimension to retrieve (personal, loneliness, self-efficacy, or summary)\n        metric_deprecated: Deprecated alias for --dimension (use --dimension instead)\n        year: Filter data for specific year (format: 2024/25)\n        output_format: Output format (csv or json)\n        force_refresh: Force re-download even if cached\n        save: Save data to file (specify filename)\n\n    Dimensions (personal, loneliness, self-efficacy, summary):\n        personal - ONS4 measures (Life Satisfaction, Worthwhile, Happiness, Anxiety);\n        scores 0-10 (higher is better, except Anxiety).\n        loneliness - Proportion feeling lonely at least some of the time.\n        self-efficacy - Mean self-efficacy scores (range 5-25).\n        summary - Combined latest values for all measures.\n\n    Examples:\n        Get personal wellbeing (ONS4 measures)::\n\n            bolster nisra wellbeing\n\n        Get loneliness statistics::\n\n            bolster nisra wellbeing --dimension loneliness\n\n        Get summary of all dimensions for latest year::\n\n            bolster nisra wellbeing --dimension summary\n\n        Filter for a specific year::\n\n            bolster nisra wellbeing --year \"2023/24\"\n\n        Save to file::\n\n            bolster nisra wellbeing --save wellbeing.csv\n\n    Data Notes:\n        - Personal wellbeing: Annual from 2014/15 to present\n        - Loneliness: Annual from 2017/18 to present\n        - Self-efficacy: Annual from 2014/15 to present\n        - COVID-19 Note: 2020/21 shows increased anxiety and loneliness\n\n    Returns:\n        DataFrame with columns (for personal metric):\n            - year: Financial year (e.g., \"2024/25\")\n            - life_satisfaction: Mean score 0-10 (higher is better)\n            - worthwhile: Mean score 0-10 (higher is better)\n            - happiness: Mean score 0-10 (higher is better)\n            - anxiety: Mean score 0-10 (lower is better)\n\n    Note:\n        Source: https://www.nisra.gov.uk/statistics/wellbeing/individual-wellbeing-northern-ireland",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "personal",
+            "description": "Which dimension to retrieve (default: personal) Choices: ('personal', 'loneliness', 'self-efficacy', 'summary') Default: 'personal'."
+          },
+          "metric_deprecated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Default: None."
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter data for specific year (format: 2024/25)"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_psni_rtc",
+      "description": "PSNI Road Traffic Collision Statistics.\n\n    Retrieves police-recorded injury road traffic collision data including:\n    - Collision records with date, location, road conditions\n    - Casualty records with severity (fatal/serious/slight), road user type\n    - Vehicle records with type and driver details\n\n    Args:\n        year: Specific year to retrieve (default: latest)\n        data_type: Type of data to retrieve (collisions, casualties, vehicles, or summary)\n        by: Group results by dimension (district, road-user, or year)\n        output_format: Output format (table, csv, or json)\n        save: Save data to file (specify filename)\n        force_refresh: Force re-download even if cached\n\n    Examples:\n        Get annual summary for all available years::\n\n            bolster psni rtc --data-type summary\n\n        Get 2024 casualties by district::\n\n            bolster psni rtc --year 2024 --data-type casualties --by district\n\n        Get casualties by road user type::\n\n            bolster psni rtc --data-type casualties --by road-user\n\n        Export collision data to CSV::\n\n            bolster psni rtc --year 2024 --data-type collisions --format csv --save collisions.csv\n\n    Data Notes:\n        - Data covers injury collisions only (not damage-only)\n        - Available from 2013 onwards via OpenDataNI\n        - Severity: Fatal, Serious, Slight\n        - Updated annually (~6 months after year end)\n\n    Returns:\n        DataFrame with various columns depending on data_type and grouping",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Specific year to retrieve (default: latest)"
+          },
+          "data_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "summary",
+            "description": "Type of data to retrieve (default: summary) Choices: ('collisions', 'casualties', 'vehicles', 'summary') Default: 'summary'."
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Group results by dimension Choices: ('district', 'road-user', 'year')"
+          },
+          "force_refresh": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Force re-download even if cached Default: False."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_rss_nisra_statistics",
+      "description": "Browse NISRA (Northern Ireland Statistics and Research Agency) publications.\n\n    Fetches and displays recent research and statistics publications from NISRA\n    via the GOV.UK website. Includes reports on demographics, health, economy,\n    labour market, crime, and lifestyle surveys.\n\n    Args:\n        limit: Maximum number of entries to display\n        title_filter: Filter entries by title keyword\n        after_date: Show only entries after this date\n        order: Sort order for entries (newest, oldest)\n        format: Output format (rich, json, csv)\n\n    Examples:\n        # Show recent NISRA publications\n        bolster nisra-statistics\n\n        # Find health-related statistics\n        bolster nisra-statistics --title-filter \"health\"\n\n        # Get oldest publications first\n        bolster nisra-statistics --order oldest --limit 10\n\n        # Export to CSV\n        bolster nisra-statistics --format csv > nisra.csv\n\n    Note:\n        Publication types include:\n        - Labour Market Statistics\n        - Population & Demographics\n        - Health & Social Care\n        - Crime & Justice Statistics\n        - Economic Statistics\n        - Lifestyle & Wellbeing Surveys\n\n        Output formats:\n        - rich: Beautiful terminal output with colors (default)\n        - json: Machine-readable JSON format\n        - csv: Spreadsheet-compatible CSV format",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 20,
+            "description": "Maximum number of entries to display Default: 20."
+          },
+          "title_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter entries by title (case-insensitive)"
+          },
+          "after_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Show entries published after this date (YYYY-MM-DD)"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "recent",
+            "description": "Sort order by release date Choices: ('recent', 'oldest') Default: 'recent'."
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "rich",
+            "description": "Output format Choices: ('rich', 'json', 'csv') Default: 'rich'."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_rss_read",
+      "description": "Read and display RSS/Atom feeds with beautiful formatting.\n\n    Fetches and parses RSS or Atom feeds from any URL, displaying entries\n    with rich formatting in the terminal. Supports filtering by title and date range.\n\n    Args:\n        feed_url: URL of the RSS or Atom feed to read\n        limit: Maximum number of entries to display\n        title_filter: Filter entries by title keyword\n        after_date: Show only entries after this date\n        before_date: Show only entries before this date\n        format: Output format (rich, json, csv)\n\n    Examples:\n        # Display NISRA statistics feed\n        bolster rss-feed \"https://www.gov.uk/search/research-and-statistics.atom\"\n\n        # Filter by title keyword\n        bolster rss-feed URL --title-filter \"health\"\n\n        # Limit to recent entries\n        bolster rss-feed URL --limit 10 --after-date 2024-01-01\n\n    Note:\n        Output formats:\n        - rich: Beautiful terminal output with colors and formatting (default)\n        - json: Machine-readable JSON output\n        - csv: Comma-separated values for spreadsheet import",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "feed_url": {
+            "type": "string",
+            "description": ""
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 20,
+            "description": "Maximum number of entries to display Default: 20."
+          },
+          "title_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter entries by title (case-insensitive)"
+          },
+          "after_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Show entries published after this date (YYYY-MM-DD)"
+          },
+          "before_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Show entries published before this date (YYYY-MM-DD)"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "rich",
+            "description": "Output format Choices: ('rich', 'json', 'csv') Default: 'rich'."
+          }
+        },
+        "required": [
+          "feed_url"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "bolster_water_quality",
+      "description": "Get water quality information for a Northern Ireland postcode or zone.\n\n    Provides water quality data including hardness classification, chemical parameters,\n    and compliance information from Northern Ireland Water.\n\n    Examples:\n        bolster water-quality BT1 5GS     # Lookup by postcode\n        bolster water-quality --zone-code BALM  # Lookup by zone code\n        bolster water-quality BT7 --format json  # JSON output",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "postcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": ""
+          },
+          "zone_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Water supply zone code (alternative to postcode lookup)"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "check_availability",
+      "description": "Check Andrew Bolster's calendar availability using his public iCal feed.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Start date in YYYY-MM-DD format (defaults to today)"
+          },
+          "days_ahead": {
+            "default": 7,
+            "description": "Number of days to check ahead",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_recent_blog_posts",
+      "description": "Fetch recent blog posts from Andrew Bolster's RSS feed.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 5,
+            "description": "Number of recent posts to return (1-10)",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "send_contact_message",
+      "description": "Send a message to Andrew Bolster for professional inquiries or collaboration requests.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "description": "The message content to send to Andrew",
+            "type": "string"
+          },
+          "sender": {
+            "description": "Name or identifier of the person sending the message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "sender"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}
