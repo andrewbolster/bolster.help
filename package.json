@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "refresh-tools": "node scripts/refresh-tools.mjs",
-    "check-retrieval": "node scripts/check-retrieval.mjs"
+    "check-retrieval": "node scripts/check-retrieval.mjs",
+    "check-agent": "node scripts/check-agent.mjs"
   }
 }
