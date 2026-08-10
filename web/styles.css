@@ -1,0 +1,179 @@
+:root {
+  --ink: #16191d;
+  --muted: #5c6570;
+  --line: #d9dee4;
+  --accent: #1d4ed8;
+  --surface: #f5f7fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  max-width: 44rem;
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+header p,
+footer p {
+  color: var(--muted);
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+section {
+  margin-top: 2rem;
+}
+
+#setup,
+#unsupported {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+select,
+input[type="text"] {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+}
+
+select {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+button {
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: var(--muted);
+  cursor: default;
+}
+
+#progress:empty {
+  display: none;
+}
+
+#progress {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+#transcript {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+#transcript li {
+  margin-bottom: 1.25rem;
+}
+
+.who {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#transcript p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+#transcript .user p {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.tools {
+  margin-top: 0.4rem !important;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+#composer {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#composer input {
+  flex: 1;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+th,
+td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.pass {
+  color: #15803d;
+}
+
+.fail {
+  color: #b91c1c;
+}

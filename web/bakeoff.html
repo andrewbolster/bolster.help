@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Model bake-off — bolster.help</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Model bake-off</h1>
+      <p>
+        Runs the fixture prompts through one model and scores whether the expected tool was
+        called with schema-valid arguments. Run it once per candidate and compare.
+      </p>
+    </header>
+
+    <main>
+      <section id="unsupported" hidden>
+        <h2>WebGPU unavailable</h2>
+        <p>This harness needs WebGPU. Use Chrome or Edge on a desktop.</p>
+      </section>
+
+      <section id="setup">
+        <label for="model">Model</label>
+        <select id="model"></select>
+        <button id="run" type="button">Run fixtures</button>
+        <p id="progress" role="status"></p>
+      </section>
+
+      <section id="results" hidden>
+        <p id="score"></p>
+        <table>
+          <thead>
+            <tr>
+              <th>Prompt</th>
+              <th>Expected</th>
+              <th>Called</th>
+              <th>Args</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <script type="module" src="./src/bakeoff.js"></script>
+  </body>
+</html>

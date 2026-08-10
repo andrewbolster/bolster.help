@@ -13,7 +13,7 @@ const LIMIT = 8;
 
 const [snapshot, fixtures] = await Promise.all([
   readFile(join(here, "..", "web", "src", "tools.json"), "utf8").then(JSON.parse),
-  readFile(join(here, "fixtures.json"), "utf8").then(JSON.parse),
+  readFile(join(here, "..", "web", "src", "fixtures.json"), "utf8").then(JSON.parse),
 ]);
 
 const known = new Set(snapshot.tools.map((t) => t.name));
