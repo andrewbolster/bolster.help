@@ -3,44 +3,71 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
     <title>bolster.help — ask about Northern Ireland</title>
     <meta
       name="description"
-      content="Ask questions about Northern Ireland open data. The model runs in your browser; nothing you type is sent to a server."
+      content="Ask questions about Northern Ireland open data, answered from official statistics."
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header>
       <h1>bolster.help</h1>
-      <p>
-        Questions about Northern Ireland, answered from official statistics. The model runs
-        on your own machine — what you type never reaches a server.
+      <p>Questions about Northern Ireland, answered from official statistics.</p>
+      <p id="account">
+        <button id="signin" type="button">Sign in with GitHub</button>
+        <span id="whoami" hidden></span>
       </p>
     </header>
 
     <main>
-      <section id="unsupported" hidden>
-        <h2>This browser can't run the model</h2>
-        <p>
-          Inference here needs WebGPU, which this browser doesn't expose. Chrome or Edge on a
-          desktop will work. Nothing has been downloaded.
-        </p>
-        <p>
-          The underlying data tools are a Python package —
-          <a href="https://bolster.readthedocs.io">bolster.readthedocs.io</a> documents them.
-        </p>
-      </section>
-
       <section id="setup">
-        <h2>Load the model</h2>
-        <p id="setup-note">
-          First run downloads about 4.5&nbsp;GB of model weights and caches them in this
-          browser. Later visits start immediately.
-        </p>
-        <label for="model">Model</label>
-        <select id="model"></select>
-        <button id="load" type="button">Download and start</button>
+        <h2>Choose how to run the model</h2>
+
+        <fieldset id="tier">
+          <legend>Inference</legend>
+          <label class="choice">
+            <input type="radio" name="tier" value="local" checked />
+            In this browser
+          </label>
+          <label class="choice">
+            <input type="radio" name="tier" value="remote" />
+            OpenAI-compatible API
+          </label>
+        </fieldset>
+
+        <div id="local-options">
+          <p id="no-webgpu" class="warn" hidden>
+            This browser doesn't expose WebGPU, so it can't run a model locally. Chrome or
+            Edge on a desktop will, or use an API endpoint instead.
+          </p>
+          <label for="model">Model</label>
+          <select id="model"></select>
+          <p class="hint">
+            First run downloads about 4.5&nbsp;GB of weights and caches them in this browser.
+            Later visits start immediately.
+          </p>
+        </div>
+
+        <div id="remote-options" hidden>
+          <label for="base-url">Base URL</label>
+          <input id="base-url" type="url" autocomplete="off" placeholder="https://api.openai.com/v1" />
+
+          <label for="api-key">API key</label>
+          <input id="api-key" type="password" autocomplete="off" />
+
+          <label for="remote-model">Model</label>
+          <input id="remote-model" type="text" autocomplete="off" placeholder="gpt-4o-mini" />
+          <button id="list-models" type="button" class="secondary">List models</button>
+
+          <p class="hint">
+            The key is sent from this browser straight to that endpoint, and is kept until
+            you close the tab. The endpoint has to allow cross-origin requests.
+          </p>
+        </div>
+
+        <button id="load" type="button">Start</button>
         <p id="progress" role="status"></p>
       </section>
 
@@ -56,6 +83,10 @@
           />
           <button type="submit">Ask</button>
         </form>
+        <p id="chat-actions">
+          <button id="save-chat" type="button" class="secondary" hidden>Save conversation</button>
+          <span id="save-state"></span>
+        </p>
       </section>
     </main>
 
@@ -63,7 +94,8 @@
       <p>
         Data comes from NISRA, PSNI, DfI and Companies House via
         <a href="https://mcp.bolster.online">mcp.bolster.online</a>. Figures are as published;
-        a small model can still misread them.
+        a small model can still misread them. The tools are a Python package —
+        <a href="https://bolster.readthedocs.io">bolster.readthedocs.io</a>.
       </p>
     </footer>
 

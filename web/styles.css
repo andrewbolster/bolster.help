@@ -64,7 +64,9 @@ label {
 }
 
 select,
-input[type="text"] {
+input[type="text"],
+input[type="url"],
+input[type="password"] {
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -72,9 +74,61 @@ input[type="text"] {
   background: #fff;
 }
 
-select {
+select,
+#remote-options input {
   width: 100%;
   margin-bottom: 0.75rem;
+}
+
+fieldset {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  padding: 0;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.choice {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0.4rem 1rem 0 0;
+  font-weight: 400;
+}
+
+.hint,
+.warn {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.warn {
+  color: #b91c1c;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 400;
+}
+
+#account {
+  font-size: 0.875rem;
+}
+
+#chat-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
 }
 
 button {

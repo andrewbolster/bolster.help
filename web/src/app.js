@@ -1,37 +1,39 @@
 import { createAgent } from "./agent.js";
 import { McpClient } from "./mcp.js";
-import { DEFAULT_MODEL, MODELS, PROXY_ENDPOINT, WEBLLM_CDN } from "./config.js";
+import { createRemoteEngine, listModels } from "./providers.js";
+import {
+  API_ORIGIN,
+  CREDENTIALS_KEY,
+  DEFAULT_BASE_URL,
+  DEFAULT_MODEL,
+  MODELS,
+  PROXY_ENDPOINT,
+  WEBLLM_CDN,
+} from "./config.js";
 
 const el = (id) => document.getElementById(id);
 const HISTORY_KEY = "bolster.help/transcript";
 
-// WebGPU is checked before anything else loads: without it there is no point
-// pulling gigabytes of weights the browser cannot use.
-if (!navigator.gpu) {
-  el("unsupported").hidden = false;
-  el("setup").hidden = true;
-} else {
-  main();
-}
+// Inference, storage and the agent loop all run here. The server is only ever
+// asked for two things: the MCP hop (the origin sends no CORS headers, so it is
+// unavoidable) and, once signed in, somewhere to keep a conversation.
+const state = { chatId: null, user: null };
 
-function loadHistory() {
+const read = (key, fallback) => {
   try {
-    return JSON.parse(sessionStorage.getItem(HISTORY_KEY)) ?? [];
+    return JSON.parse(sessionStorage.getItem(key)) ?? fallback;
   } catch {
-    return [];
+    return fallback;
   }
-}
+};
 
-// sessionStorage only. Anonymous conversations never leave the tab, which is
-// both the privacy claim on the front page and what keeps traffic off the
-// free-tier storage budget.
-function saveHistory(history) {
+const write = (key, value) => {
   try {
-    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    sessionStorage.setItem(key, JSON.stringify(value));
   } catch {
     // Quota exhausted by a long conversation; losing scrollback is acceptable.
   }
-}
+};
 
 function render(transcript, history) {
   transcript.replaceChildren(
@@ -56,9 +58,93 @@ function render(transcript, history) {
   transcript.lastElementChild?.scrollIntoView({ block: "end" });
 }
 
-async function main() {
-  const select = el("model");
-  select.replaceChildren(
+const credentials = () => ({
+  baseUrl: el("base-url").value.trim() || DEFAULT_BASE_URL,
+  apiKey: el("api-key").value.trim(),
+  model: el("remote-model").value.trim(),
+});
+
+function selectedTier() {
+  return document.querySelector('input[name="tier"]:checked').value;
+}
+
+async function buildEngine(tier, onProgress) {
+  if (tier === "remote") {
+    const creds = credentials();
+    if (!creds.apiKey) throw new Error("an API key is required");
+    if (!creds.model) throw new Error("a model name is required");
+    write(CREDENTIALS_KEY, { baseUrl: creds.baseUrl, model: creds.model });
+    return createRemoteEngine(creds);
+  }
+
+  if (!navigator.gpu) throw new Error("this browser has no WebGPU");
+  onProgress("Fetching the runtime…");
+  const { CreateMLCEngine } = await import(/* @vite-ignore */ WEBLLM_CDN);
+  return CreateMLCEngine(el("model").value, {
+    initProgressCallback: (p) => onProgress(p.text),
+  });
+}
+
+function setupTierToggle() {
+  const local = el("local-options");
+  const remote = el("remote-options");
+  const apply = () => {
+    const tier = selectedTier();
+    local.hidden = tier !== "local";
+    remote.hidden = tier === "local";
+  };
+  for (const radio of document.querySelectorAll('input[name="tier"]')) {
+    radio.addEventListener("change", apply);
+  }
+
+  if (!navigator.gpu) {
+    el("no-webgpu").hidden = false;
+    document.querySelector('input[name="tier"][value="local"]').disabled = true;
+    document.querySelector('input[name="tier"][value="remote"]').checked = true;
+  }
+  apply();
+}
+
+async function refreshAccount() {
+  try {
+    const response = await fetch(`${API_ORIGIN}/me`, { credentials: "include" });
+    if (!response.ok) return;
+    state.user = await response.json();
+    el("signin").hidden = true;
+    const who = el("whoami");
+    who.hidden = false;
+    who.textContent = `Signed in as ${state.user.login}`;
+    el("save-chat").hidden = false;
+  } catch {
+    // Not signed in, or the Worker isn't reachable. Either way the app works.
+  }
+}
+
+async function saveChat(history) {
+  const state_ = el("save-state");
+  state_.textContent = "Saving…";
+  try {
+    const response = await fetch(`${API_ORIGIN}/chats`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: state.chatId,
+        title: history.find((t) => t.role === "user")?.content?.slice(0, 80) ?? "Untitled",
+        messages: history,
+      }),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const body = await response.json();
+    state.chatId = body.id;
+    state_.textContent = "Saved.";
+  } catch (err) {
+    state_.textContent = `Could not save: ${err.message}`;
+  }
+}
+
+function main() {
+  el("model").replaceChildren(
     ...MODELS.map((m) => {
       const option = document.createElement("option");
       option.value = m.id;
@@ -68,20 +154,47 @@ async function main() {
     }),
   );
 
-  const history = loadHistory();
+  const remembered = read(CREDENTIALS_KEY, {});
+  el("base-url").value = remembered.baseUrl ?? DEFAULT_BASE_URL;
+  el("remote-model").value = remembered.model ?? "";
+
+  setupTierToggle();
+  refreshAccount();
+
+  const history = read(HISTORY_KEY, []);
   const transcript = el("transcript");
   render(transcript, history);
+
+  el("signin").addEventListener("click", () => {
+    const back = encodeURIComponent(location.href);
+    location.href = `${API_ORIGIN}/auth/github/login?redirect=${back}`;
+  });
+
+  el("save-chat").addEventListener("click", () => saveChat(history));
+
+  el("list-models").addEventListener("click", async () => {
+    const progress = el("progress");
+    try {
+      const names = await listModels(credentials());
+      progress.textContent = names.length
+        ? `${names.length} models: ${names.slice(0, 12).join(", ")}`
+        : "That endpoint listed no models.";
+    } catch (err) {
+      progress.textContent = `Could not list models: ${err.message}`;
+    }
+  });
 
   el("load").addEventListener("click", async () => {
     const button = el("load");
     const progress = el("progress");
     button.disabled = true;
-    select.disabled = true;
-    progress.textContent = "Fetching the runtime…";
+    progress.textContent = "Starting…";
 
     try {
-      const [{ CreateMLCEngine }, snapshot, mcp] = await Promise.all([
-        import(/* @vite-ignore */ WEBLLM_CDN),
+      const [engine, snapshot, mcp] = await Promise.all([
+        buildEngine(selectedTier(), (text) => {
+          progress.textContent = text;
+        }),
         fetch("./src/tools.json").then((r) => r.json()),
         (async () => {
           const client = new McpClient(PROXY_ENDPOINT);
@@ -90,21 +203,13 @@ async function main() {
         })(),
       ]);
 
-      const engine = await CreateMLCEngine(select.value, {
-        initProgressCallback: (p) => {
-          progress.textContent = p.text;
-        },
-      });
-
-      const agent = createAgent({ tools: snapshot.tools, engine, mcp });
-      startChat(agent, history, transcript);
+      startChat(createAgent({ tools: snapshot.tools, engine, mcp }), history, transcript);
       el("setup").hidden = true;
       el("chat").hidden = false;
       el("prompt").focus();
     } catch (err) {
       progress.textContent = `Could not start: ${err.message}`;
       button.disabled = false;
-      select.disabled = false;
     }
   });
 }
@@ -130,9 +235,7 @@ function startChat(agent, history, transcript) {
     try {
       // Only the plain user/assistant turns are replayed: tool payloads are
       // large and already summarised into the answer that followed them.
-      const priorTurns = history
-        .slice(0, -2)
-        .map(({ role, content }) => ({ role, content }));
+      const priorTurns = history.slice(0, -2).map(({ role, content }) => ({ role, content }));
 
       const { content } = await agent(priorTurns, question, {
         onEvent: (e) => {
@@ -150,8 +253,10 @@ function startChat(agent, history, transcript) {
     }
 
     render(transcript, history);
-    saveHistory(history);
+    write(HISTORY_KEY, history);
     input.disabled = false;
     input.focus();
   });
 }
+
+main();

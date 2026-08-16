@@ -1,9 +1,9 @@
 // In production the Worker is routed at bolster.help/mcp-proxy, so the call is
 // same-origin and never triggers a preflight. Local dev points at wrangler.
-export const PROXY_ENDPOINT =
-  location.hostname === "localhost" || location.hostname === "127.0.0.1"
-    ? "http://127.0.0.1:8788/mcp-proxy"
-    : "/mcp-proxy";
+const LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+
+export const PROXY_ENDPOINT = LOCAL ? "http://127.0.0.1:8788/mcp-proxy" : "/mcp-proxy";
+export const API_ORIGIN = LOCAL ? "http://127.0.0.1:8788" : "";
 
 export const MODELS = [
   { id: "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC", label: "Hermes 2 Pro 8B", size: "~4.5 GB" },
@@ -13,3 +13,10 @@ export const MODELS = [
 export const DEFAULT_MODEL = MODELS[0].id;
 
 export const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm";
+
+// sessionStorage, so a key survives a reload but not closing the tab. Anything
+// longer-lived wants encryption at rest and a clear story about what that does
+// and does not defend against; not worth it before the app has users.
+export const CREDENTIALS_KEY = "bolster.help/byok";
+
+export const DEFAULT_BASE_URL = "https://api.openai.com/v1";

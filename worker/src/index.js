@@ -6,6 +6,8 @@
 // reaches it unfiltered. That is a known, accepted trade.
 
 import { ALLOWED_METHODS, ALLOWED_TOOLS } from "./allowlist.js";
+import { callback, login, logout, session } from "./auth.js";
+import { chats } from "./chats.js";
 
 const DEFAULT_ORIGINS = "https://bolster.help,http://localhost:5173";
 const MAX_BODY_BYTES = 16 * 1024;
@@ -16,9 +18,10 @@ function corsHeaders(request, env) {
   const ok = origin && (allowed.includes(origin) || /^https:\/\/[a-z0-9-]+\.pages\.dev$/.test(origin));
   return {
     "access-control-allow-origin": ok ? origin : allowed[0],
-    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
     "access-control-allow-headers": "content-type, mcp-session-id",
     "access-control-expose-headers": "mcp-session-id",
+    "access-control-allow-credentials": "true",
     "access-control-max-age": "86400",
     vary: "origin",
   };
@@ -107,6 +110,25 @@ export default {
     const { pathname } = new URL(request.url);
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+
+    if (pathname === "/auth/github/login") return login(request, env);
+    if (pathname === "/auth/github/callback") return callback(request, env);
+    if (pathname === "/auth/logout") return logout(request, env, headers);
+
+    if (pathname === "/me") {
+      const user = await session(request, env);
+      return user
+        ? json({ login: user.login }, 200, headers)
+        : json({ error: "not signed in" }, 401, headers);
+    }
+
+    if (pathname === "/chats" || pathname.startsWith("/chats/")) {
+      const user = await session(request, env);
+      if (!user) return json({ error: "not signed in" }, 401, headers);
+      const id = pathname.slice("/chats/".length) || null;
+      return chats(request, env, headers, user, id);
+    }
+
     if (pathname !== "/mcp-proxy") return new Response("not found", { status: 404, headers });
     if (request.method !== "POST") return new Response("method not allowed", { status: 405, headers });
 
