@@ -1,28 +1,37 @@
 # bolster.help
 
 A chat interface for the Northern Ireland open-data tools exposed by
-[mcp.bolster.online](https://mcp.bolster.online). Inference, storage and the agent
-loop all run in the browser. The Worker exists for two things only: the MCP hop,
-and — for signed-in users — somewhere to keep a conversation.
+[mcp.bolster.online](https://mcp.bolster.online). The agent loop runs in the
+browser against an OpenAI-compatible endpoint. The Worker exists for the MCP hop,
+conversation storage, and — for allowlisted accounts — inference on the
+deployment's own key.
 
 Package documentation lives at [bolster.readthedocs.io](https://bolster.readthedocs.io) —
 this site does not duplicate it.
 
-## Inference tiers
+## Where the key comes from
 
-| Tier | Needs | Where the model runs |
+| Path | Who supplies the key | Route |
 | --- | --- | --- |
-| Local | WebGPU, ~4.5 GB download | In the tab, via WebLLM |
-| BYOK | An OpenAI-compatible base URL and key | The provider the user names |
+| Visitor's own | Base URL, key and model typed into the page | Browser straight to the provider |
+| Deployment's | `LLM_*` Worker secrets | Browser → Worker `/llm` → provider |
 
-BYOK requests go from the browser straight to the provider. Relaying them through
-the Worker would make it the custodian of the user's key and an open forwarder to
-any URL they name — a worse trade than depending on the provider sending CORS
-headers, which OpenAI, OpenRouter, Groq and LiteLLM all do.
+A key the visitor typed never reaches the Worker. Relaying it would make the
+Worker the custodian of someone else's key and an open forwarder to any URL they
+name — a worse trade than depending on the provider sending CORS headers, which
+OpenAI, OpenRouter, Groq and LiteLLM all do. The key lives in `sessionStorage`,
+so it survives a reload but not closing the tab.
 
-Signing in is orthogonal to both: it buys conversation persistence and nothing
-else. No OAuth scopes are requested and the GitHub token is discarded after the
-profile read.
+The deployment's key is the opposite case: a Worker secret cannot be handed to
+the browser, so those calls have to be relayed. `/llm` is therefore a way to
+spend someone else's money, and is gated twice — signed in, and named in
+`GITHUB_ALLOWED_LOGINS`. It also pins the model server-side; letting the caller
+name it invites picking the most expensive one on the key. `/me` reports whether
+an account qualifies so the page knows which form to show, but that flag is a
+hint: `/llm` re-checks on every call.
+
+Signing in otherwise buys conversation persistence and nothing else. No OAuth
+scopes are requested and the GitHub token is discarded after the profile read.
 
 GitHub Copilot is **not** a tier. Its endpoints are browser-reachable — both
 `api.githubcopilot.com/chat/completions` and the `copilot_internal/v2/token`
@@ -78,8 +87,8 @@ sit behind one origin — which they do in production.
 ## Setup that needs account access
 
 None of this can be done from the repo; it all needs Andrew's own credentials.
-Nothing below is required for BYOK — a visitor supplies their own base URL and
-key, and no tier needs an account to work.
+None of it is required for a visitor bringing their own base URL and key — that
+path works without an account.
 
 **1. GitHub OAuth app** — register at
 `github.com/settings/developers`. Homepage `https://bolster.help`, callback
@@ -92,7 +101,14 @@ reads the public profile.
 cd worker
 npx wrangler secret put GITHUB_CLIENT_ID
 npx wrangler secret put GITHUB_CLIENT_SECRET
+npx wrangler secret put LLM_BASE_URL
+npx wrangler secret put LLM_API_KEY
+npx wrangler secret put LLM_MODEL
 ```
+
+The three `LLM_*` secrets are optional — leaving them unset disables `/llm`
+entirely, and everyone brings their own key. Set `GITHUB_ALLOWED_LOGINS` in
+`wrangler.toml` to say who may spend them.
 
 **3. Storage** — create both, then replace the two `REPLACE_WITH_*` placeholders
 in `wrangler.toml` with the ids they print.

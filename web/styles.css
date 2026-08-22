@@ -100,15 +100,10 @@ legend {
   font-weight: 400;
 }
 
-.hint,
-.warn {
+.hint {
   margin: 0 0 1rem;
   font-size: 0.8125rem;
   color: var(--muted);
-}
-
-.warn {
-  color: #b91c1c;
 }
 
 button.secondary {

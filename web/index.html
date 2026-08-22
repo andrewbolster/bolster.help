@@ -23,34 +23,17 @@
 
     <main>
       <section id="setup">
-        <h2>Choose how to run the model</h2>
+        <h2>Point it at a model</h2>
 
-        <fieldset id="tier">
-          <legend>Inference</legend>
+        <p id="shared-note" hidden>
+          This deployment has a model configured for your account.
           <label class="choice">
-            <input type="radio" name="tier" value="local" checked />
-            In this browser
+            <input id="use-own-key" type="checkbox" />
+            Use my own key instead
           </label>
-          <label class="choice">
-            <input type="radio" name="tier" value="remote" />
-            OpenAI-compatible API
-          </label>
-        </fieldset>
+        </p>
 
-        <div id="local-options">
-          <p id="no-webgpu" class="warn" hidden>
-            This browser doesn't expose WebGPU, so it can't run a model locally. Chrome or
-            Edge on a desktop will, or use an API endpoint instead.
-          </p>
-          <label for="model">Model</label>
-          <select id="model"></select>
-          <p class="hint">
-            First run downloads about 4.5&nbsp;GB of weights and caches them in this browser.
-            Later visits start immediately.
-          </p>
-        </div>
-
-        <div id="remote-options" hidden>
+        <div id="remote-options">
           <label for="base-url">Base URL</label>
           <input id="base-url" type="url" autocomplete="off" placeholder="https://api.openai.com/v1" />
 

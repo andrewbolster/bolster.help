@@ -6,6 +6,13 @@ compatibility_date = "2026-05-01"
 MCP_ORIGIN = "https://mcp.bolster.online/mcp"
 ALLOWED_ORIGINS = "https://bolster.help,http://localhost:5173"
 
+# Who may spend the deployment's own LLM credentials. Empty means nobody, which
+# is the right default: every other visitor brings their own key.
+GITHUB_ALLOWED_LOGINS = "andrewbolster"
+
+# LLM_BASE_URL, LLM_API_KEY and LLM_MODEL are secrets, not vars — set them with
+# `wrangler secret put`. Leaving them unset disables /llm entirely.
+
 # Cloudflare's rate-limiting binding rather than a KV counter: the free tier
 # allows 1K KV writes/day, which a per-request counter would exhaust in minutes.
 [[unsafe.bindings]]

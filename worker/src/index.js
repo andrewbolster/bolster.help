@@ -8,6 +8,7 @@
 import { ALLOWED_METHODS, ALLOWED_TOOLS } from "./allowlist.js";
 import { callback, login, logout, session } from "./auth.js";
 import { chats } from "./chats.js";
+import { canUseSharedKey, llm } from "./llm.js";
 
 const DEFAULT_ORIGINS = "https://bolster.help,http://localhost:5173";
 const MAX_BODY_BYTES = 16 * 1024;
@@ -118,8 +119,12 @@ export default {
     if (pathname === "/me") {
       const user = await session(request, env);
       return user
-        ? json({ login: user.login }, 200, headers)
+        ? json({ login: user.login, sharedKey: canUseSharedKey(env, user) }, 200, headers)
         : json({ error: "not signed in" }, 401, headers);
+    }
+
+    if (pathname === "/llm") {
+      return llm(request, env, headers, await session(request, env));
     }
 
     if (pathname === "/chats" || pathname.startsWith("/chats/")) {

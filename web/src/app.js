@@ -1,22 +1,15 @@
 import { createAgent } from "./agent.js";
 import { McpClient } from "./mcp.js";
-import { createRemoteEngine, listModels } from "./providers.js";
-import {
-  API_ORIGIN,
-  CREDENTIALS_KEY,
-  DEFAULT_BASE_URL,
-  DEFAULT_MODEL,
-  MODELS,
-  PROXY_ENDPOINT,
-  WEBLLM_CDN,
-} from "./config.js";
+import { createProxyEngine, createRemoteEngine, listModels } from "./providers.js";
+import { API_ORIGIN, CREDENTIALS_KEY, DEFAULT_BASE_URL, PROXY_ENDPOINT } from "./config.js";
 
 const el = (id) => document.getElementById(id);
 const HISTORY_KEY = "bolster.help/transcript";
 
-// Inference, storage and the agent loop all run here. The server is only ever
-// asked for two things: the MCP hop (the origin sends no CORS headers, so it is
-// unavoidable) and, once signed in, somewhere to keep a conversation.
+// The agent loop runs here. The server is asked for the MCP hop (the origin
+// sends no CORS headers, so it is unavoidable), somewhere to keep a
+// conversation once signed in, and — only for allowlisted accounts —
+// inference on the deployment's own key.
 const state = { chatId: null, user: null };
 
 const read = (key, fallback) => {
@@ -64,45 +57,18 @@ const credentials = () => ({
   model: el("remote-model").value.trim(),
 });
 
-function selectedTier() {
-  return document.querySelector('input[name="tier"]:checked').value;
-}
+// Offering the shared key is the deployment's decision, not the browser's:
+// /me reports whether this account may use it, and /llm re-checks on every call.
+const usingSharedKey = () => Boolean(state.user?.sharedKey) && !el("use-own-key").checked;
 
-async function buildEngine(tier, onProgress) {
-  if (tier === "remote") {
-    const creds = credentials();
-    if (!creds.apiKey) throw new Error("an API key is required");
-    if (!creds.model) throw new Error("a model name is required");
-    write(CREDENTIALS_KEY, { baseUrl: creds.baseUrl, model: creds.model });
-    return createRemoteEngine(creds);
-  }
+function buildEngine() {
+  if (usingSharedKey()) return createProxyEngine(`${API_ORIGIN}/llm`);
 
-  if (!navigator.gpu) throw new Error("this browser has no WebGPU");
-  onProgress("Fetching the runtime…");
-  const { CreateMLCEngine } = await import(/* @vite-ignore */ WEBLLM_CDN);
-  return CreateMLCEngine(el("model").value, {
-    initProgressCallback: (p) => onProgress(p.text),
-  });
-}
-
-function setupTierToggle() {
-  const local = el("local-options");
-  const remote = el("remote-options");
-  const apply = () => {
-    const tier = selectedTier();
-    local.hidden = tier !== "local";
-    remote.hidden = tier === "local";
-  };
-  for (const radio of document.querySelectorAll('input[name="tier"]')) {
-    radio.addEventListener("change", apply);
-  }
-
-  if (!navigator.gpu) {
-    el("no-webgpu").hidden = false;
-    document.querySelector('input[name="tier"][value="local"]').disabled = true;
-    document.querySelector('input[name="tier"][value="remote"]').checked = true;
-  }
-  apply();
+  const creds = credentials();
+  if (!creds.apiKey) throw new Error("an API key is required");
+  if (!creds.model) throw new Error("a model name is required");
+  write(CREDENTIALS_KEY, { baseUrl: creds.baseUrl, model: creds.model });
+  return createRemoteEngine(creds);
 }
 
 async function refreshAccount() {
@@ -115,6 +81,11 @@ async function refreshAccount() {
     who.hidden = false;
     who.textContent = `Signed in as ${state.user.login}`;
     el("save-chat").hidden = false;
+
+    if (state.user.sharedKey) {
+      el("shared-note").hidden = false;
+      el("remote-options").hidden = true;
+    }
   } catch {
     // Not signed in, or the Worker isn't reachable. Either way the app works.
   }
@@ -144,21 +115,14 @@ async function saveChat(history) {
 }
 
 function main() {
-  el("model").replaceChildren(
-    ...MODELS.map((m) => {
-      const option = document.createElement("option");
-      option.value = m.id;
-      option.textContent = `${m.label} (${m.size})`;
-      option.selected = m.id === DEFAULT_MODEL;
-      return option;
-    }),
-  );
-
   const remembered = read(CREDENTIALS_KEY, {});
   el("base-url").value = remembered.baseUrl ?? DEFAULT_BASE_URL;
   el("remote-model").value = remembered.model ?? "";
 
-  setupTierToggle();
+  el("use-own-key").addEventListener("change", (event) => {
+    el("remote-options").hidden = !event.target.checked;
+  });
+
   refreshAccount();
 
   const history = read(HISTORY_KEY, []);
@@ -192,9 +156,7 @@ function main() {
 
     try {
       const [engine, snapshot, mcp] = await Promise.all([
-        buildEngine(selectedTier(), (text) => {
-          progress.textContent = text;
-        }),
+        buildEngine(),
         fetch("./src/tools.json").then((r) => r.json()),
         (async () => {
           const client = new McpClient(PROXY_ENDPOINT);
