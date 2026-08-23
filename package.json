@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "refresh-tools": "node scripts/refresh-tools.mjs",
-    "check-retrieval": "node scripts/check-retrieval.mjs",
-    "check-agent": "node scripts/check-agent.mjs"
+    "test": "node --test tests/",
+    "test:network": "CHECK_NETWORK=1 node --test tests/",
+    "refresh-tools": "node scripts/refresh-tools.mjs"
   }
 }
