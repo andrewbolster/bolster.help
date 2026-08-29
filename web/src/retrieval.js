@@ -19,6 +19,17 @@ const STOPWORDS = new Set(
 const K1 = 1.5;
 const B = 0.75;
 
+// There is no score floor, and one cannot be added: relevant and irrelevant
+// overlap on the same range. Ordinary conversation scores against the catalogue
+// — "what do you think about remote work" reaches 4.45 against construction
+// output — while the weakest fixture that must keep working, "how is the
+// manufacturing sector performing", scores 2.58 for the production index. Any
+// cut that silences the first also silences the second.
+//
+// So irrelevant tools do get offered during general conversation. They cost
+// context, not correctness: the model has consistently declined to call them.
+// Separating the two needs signal BM25 does not have.
+
 // Docstrings are written for CLI users; chat users reach for different words.
 // These hints bridge the gap for tools where the two vocabularies barely overlap.
 const HINTS = {

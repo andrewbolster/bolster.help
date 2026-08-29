@@ -1,13 +1,9 @@
 // The tool-calling loop.
 
 import { buildIndex, search, toOpenAITools } from "./retrieval.js";
+import { SYSTEM_PROMPT } from "./persona.js";
 
-export const SYSTEM_PROMPT = [
-  "You answer questions about Northern Ireland using official statistics.",
-  "When a question needs data, call exactly one tool, then answer in plain English from what it returns.",
-  "Quote the figures you were given; never invent numbers or fill gaps from memory.",
-  "If no tool fits, say so plainly rather than guessing.",
-].join(" ");
+export { SYSTEM_PROMPT };
 
 const MAX_ROUNDS = 5;
 const CANDIDATES = 6;
