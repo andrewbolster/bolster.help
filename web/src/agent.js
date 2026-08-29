@@ -12,6 +12,26 @@ export const SYSTEM_PROMPT = [
 const MAX_ROUNDS = 5;
 const CANDIDATES = 6;
 
+// Small models sometimes emit the argument object double-encoded — a JSON
+// string whose contents are themselves JSON — so parsing once yields a string
+// rather than an object. Passing that on gets rejected as invalid parameters,
+// which costs a whole round to recover from, so unwrap one extra layer.
+//
+// Anything still not an object degrades to {}: reporting that as the tool
+// result lets the model correct itself, which beats throwing the turn away.
+function parseArguments(raw) {
+  let value = raw || "{}";
+  for (let depth = 0; depth < 2; depth += 1) {
+    if (typeof value !== "string") break;
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
 export function createAgent({ tools, engine, mcp }) {
   const index = buildIndex(tools);
 
@@ -43,13 +63,7 @@ export function createAgent({ tools, engine, mcp }) {
 
       for (const call of calls) {
         const name = call.function.name;
-        let args = {};
-        try {
-          args = JSON.parse(call.function.arguments || "{}");
-        } catch {
-          // A malformed argument string is recoverable: report it as the tool
-          // result and let the model correct itself on the next round.
-        }
+        const args = parseArguments(call.function.arguments);
         onEvent({ type: "tool", name, args });
 
         let content;

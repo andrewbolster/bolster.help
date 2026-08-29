@@ -69,6 +69,39 @@ describe("agent loop", () => {
     );
   });
 
+  // Observed from granite in production: the arguments field arrives as a JSON
+  // string whose contents are themselves JSON. Parsing once yields a string,
+  // which the MCP server rejects as invalid parameters — a wasted round.
+  it("unwraps double-encoded arguments", async () => {
+    const engine = scriptedEngine([
+      call("bolster_nisra_births", JSON.stringify('{"event_type": "registration"}')),
+      { content: "Done.", tool_calls: [] },
+    ]);
+    const seen = [];
+    await agentWith(engine, {
+      callTool: async (_name, args) => {
+        seen.push(args);
+        return "x";
+      },
+    })([], "births?");
+    assert.deepEqual(seen, [{ event_type: "registration" }]);
+  });
+
+  it("degrades a JSON array of arguments to an empty object", async () => {
+    const engine = scriptedEngine([
+      call("bolster_nisra_births", "[1,2,3]"),
+      { content: "Done.", tool_calls: [] },
+    ]);
+    const seen = [];
+    await agentWith(engine, {
+      callTool: async (_name, args) => {
+        seen.push(args);
+        return "x";
+      },
+    })([], "births?");
+    assert.deepEqual(seen, [{}], "an array is not a valid argument object");
+  });
+
   it("degrades malformed argument JSON to an empty object", async () => {
     const engine = scriptedEngine([
       call("bolster_ni_executive", "{not json"),
