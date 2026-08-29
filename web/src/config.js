@@ -1,13 +1,16 @@
-// In production the Worker is routed at bolster.help/mcp-proxy, so the call is
-// same-origin and never triggers a preflight. Local dev points at wrangler.
+// The page and the API are always on different origins.
+//
+// GitHub Pages serves the site at bolster.help; the API is a Cloudflare Worker.
+// Keeping them apart avoids moving the domain onto Cloudflare, and costs a CORS
+// preflight per call — the Worker allowlists this origin and answers it.
+//
+// The consequence worth knowing: a `SameSite=Lax` cookie will not travel
+// cross-site, so signing in needs the session cookie issued as
+// `SameSite=None; Secure`. Chatting is unaffected, since it uses no cookie.
 const LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 
-export const PROXY_ENDPOINT = LOCAL ? "http://127.0.0.1:8788/mcp-proxy" : "/mcp-proxy";
-export const API_ORIGIN = LOCAL ? "http://127.0.0.1:8788" : "";
+export const API_ORIGIN = LOCAL
+  ? "http://127.0.0.1:8788"
+  : "https://bolster-help.andrewbolster.workers.dev";
 
-// sessionStorage, so a key survives a reload but not closing the tab. Anything
-// longer-lived wants encryption at rest and a clear story about what that does
-// and does not defend against; not worth it before the app has users.
-export const CREDENTIALS_KEY = "bolster.help/byok";
-
-export const DEFAULT_BASE_URL = "https://api.openai.com/v1";
+export const PROXY_ENDPOINT = `${API_ORIGIN}/mcp-proxy`;

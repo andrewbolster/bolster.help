@@ -15,9 +15,15 @@
 // tool. A wrong tool is a wrong answer, however little it cost.
 export const FREE_TIER_MODEL = "@cf/ibm-granite/granite-4.0-h-micro";
 
-// Output is roughly 6.6x the price of input, and granite answers this workload
-// in well under 100 tokens. The cap is an abuse ceiling, not a working limit.
-export const MAX_OUTPUT_TOKENS = 400;
+// An abuse ceiling, not a working limit — but it was set at 400 when every
+// answer was a quoted statistic, and the persona asks for structured multi-part
+// explanations. Those hit `finish_reason: length` and stopped mid-sentence.
+//
+// Raising it costs nothing for the short answers that dominate: output is
+// billed per token generated, not per token allowed. It only bites when an
+// answer genuinely runs long, and a truncated answer is worth less than the
+// neurons it saved.
+export const MAX_OUTPUT_TOKENS = 1200;
 
 // Workers AI reuses HTTP 429 for two conditions needing opposite handling, so
 // the internal code is what we branch on.

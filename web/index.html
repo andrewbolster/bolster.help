@@ -4,87 +4,41 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>bolster.help — ask about Northern Ireland</title>
-    <meta
-      name="description"
-      content="Ask questions about Northern Ireland open data, answered from official statistics."
-    />
+    <title>bolster.help</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header>
       <h1>bolster.help</h1>
-      <p>Questions about Northern Ireland, answered from official statistics.</p>
       <p id="account">
-        <button id="signin" type="button">Sign in with GitHub</button>
+        <button id="signin" type="button" class="link">Sign in with GitHub</button>
         <span id="whoami" hidden></span>
       </p>
     </header>
 
     <main>
-      <section id="setup">
-        <h2>Point it at a model</h2>
+      <!-- No setup step: the page is the chat. Tools and the MCP connection are
+           established in the background, and the composer stays live throughout. -->
+      <div id="budget" hidden>
+        <div id="budget-track"><div id="budget-fill"></div></div>
+        <p id="budget-note"></p>
+      </div>
 
-        <p id="shared-note" hidden>
-          <span id="shared-note-text"></span>
-          <label class="choice">
-            <input id="use-own-key" type="checkbox" />
-            Use my own key instead
-          </label>
-        </p>
+      <ol id="transcript"></ol>
 
-        <div id="remote-options">
-          <label for="base-url">Base URL</label>
-          <input id="base-url" type="url" autocomplete="off" placeholder="https://api.openai.com/v1" />
+      <form id="composer">
+        <label class="visually-hidden" for="prompt">Message</label>
+        <input id="prompt" type="text" autocomplete="off" placeholder="Ask me something…" autofocus />
+        <button type="submit">Send</button>
+      </form>
 
-          <label for="api-key">API key</label>
-          <input id="api-key" type="password" autocomplete="off" />
+      <p id="progress" role="status"></p>
 
-          <label for="remote-model">Model</label>
-          <input id="remote-model" type="text" autocomplete="off" placeholder="gpt-4o-mini" />
-          <button id="list-models" type="button" class="secondary">List models</button>
-
-          <p class="hint">
-            The key is sent from this browser straight to that endpoint, and is kept until
-            you close the tab. The endpoint has to allow cross-origin requests.
-          </p>
-        </div>
-
-        <button id="load" type="button">Start</button>
-        <p id="progress" role="status"></p>
-      </section>
-
-      <section id="chat" hidden>
-        <div id="budget" hidden>
-          <div id="budget-track"><div id="budget-fill"></div></div>
-          <p id="budget-note"></p>
-        </div>
-        <ol id="transcript"></ol>
-        <form id="composer">
-          <label class="visually-hidden" for="prompt">Your question</label>
-          <input
-            id="prompt"
-            type="text"
-            autocomplete="off"
-            placeholder="How long are people waiting in A&amp;E?"
-          />
-          <button type="submit">Ask</button>
-        </form>
-        <p id="chat-actions">
-          <button id="save-chat" type="button" class="secondary" hidden>Save conversation</button>
-          <span id="save-state"></span>
-        </p>
-      </section>
-    </main>
-
-    <footer>
-      <p>
-        Data comes from NISRA, PSNI, DfI and Companies House via
-        <a href="https://mcp.bolster.online">mcp.bolster.online</a>. Figures are as published;
-        a small model can still misread them. The tools are a Python package —
-        <a href="https://bolster.readthedocs.io">bolster.readthedocs.io</a>.
+      <p id="chat-actions">
+        <button id="save-chat" type="button" class="secondary" hidden>Save conversation</button>
+        <span id="save-state"></span>
       </p>
-    </footer>
+    </main>
 
     <script type="module" src="./src/app.js"></script>
   </body>

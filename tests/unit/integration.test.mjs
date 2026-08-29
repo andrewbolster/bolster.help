@@ -131,11 +131,17 @@ describe("the deployed Worker", () => {
   // Inert under `wrangler dev --local`: the binding exists but never refuses,
   // so only a deployment can show the limit actually enforcing.
   gate(it, needsDeployment)("rate limits a burst to 429", async () => {
-    const burst = await Promise.all(
-      Array.from({ length: 40 }, () =>
-        fetch(`${deployedOrigin}/mcp-proxy`, rpc("tools/list")).then((r) => r.status),
-      ),
-    );
+    // `ping` rather than tools/list: it is on the method allowlist but the
+    // Worker still forwards it, so this measures the limiter without leaning on
+    // a session the burst does not establish.
+    const send = () =>
+      fetch(`${deployedOrigin}/mcp-proxy`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
+      }).then((r) => r.status);
+
+    const burst = await Promise.all(Array.from({ length: 45 }, send));
     assert.ok(burst.includes(429), `no request was limited; saw ${[...new Set(burst)].join(", ")}`);
   });
 

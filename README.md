@@ -1,27 +1,27 @@
 # bolster.help
 
-A chat interface for the Northern Ireland open-data tools exposed by
-[mcp.bolster.online](https://mcp.bolster.online). The agent loop runs in the
-browser against an OpenAI-compatible endpoint. The Worker exists for the MCP hop,
-conversation storage, and — for allowlisted accounts — inference on the
-deployment's own key.
+A chat interface backed by [mcp.bolster.online](https://mcp.bolster.online). The
+agent loop runs in the browser; the Worker exists for the MCP hop, inference,
+and conversation storage.
 
-Package documentation lives at [bolster.readthedocs.io](https://bolster.readthedocs.io) —
-this site does not duplicate it.
+## Where inference comes from
 
-## Where the key comes from
+There is nothing to configure and nothing to bring. Every visitor, signed in or
+not, gets `@cf/ibm-granite/granite-4.0-h-micro` on Cloudflare's free allocation
+of 10,000 neurons a day. On the Workers Free plan that ceiling is enforced by
+Cloudflare, so this cannot produce a bill — the same fail-closed posture as
+leaving the account without a payment method.
 
-| Path | Who supplies the key | Route |
-| --- | --- | --- |
-| Free tier | Cloudflare's daily Workers AI allocation | Browser → Worker `/llm` → `env.AI` |
-| Visitor's own | Base URL, key and model typed into the page | Browser straight to the provider |
-| Deployment's | `LLM_*` Worker secrets | Browser → Worker `/llm` → provider |
+An earlier design let visitors paste their own provider key. It was removed: it
+asked people to hand a credential to someone else's website, which nobody
+sensible does, in exchange for three engine code paths and a form standing
+between the visitor and the chat.
 
-Anyone can ask a question without signing in or bringing a key: the Worker runs
-`@cf/ibm-granite/granite-4.0-h-micro` on Cloudflare's free allocation of 10,000
-neurons a day. On the Workers Free plan that ceiling is enforced by Cloudflare,
-so the free tier cannot produce a bill — the same fail-closed posture as leaving
-the account without a payment method.
+Signing in adds one thing — somewhere to keep the conversation. No OAuth scopes
+are requested and the GitHub token is discarded after the profile read. If the
+account is named in `GITHUB_ALLOWED_LOGINS` and the `LLM_*` secrets are set,
+`/llm` quietly uses those instead; there is no UI for it, and `/llm` re-decides
+on every call.
 
 The model was picked by measuring tool selection against the retrieval fixtures,
 not by price. It scored 12/12 on the cases that matter — including the three
@@ -31,42 +31,17 @@ spending 280 completion tokens to get there. A wrong tool is a wrong answer,
 however little it cost.
 
 `NeuronBudget`, a Durable Object, records what each reply actually cost from the
-`usage.neurons` Workers AI reports, and the page draws a bar from it. The
-counter is a Durable Object rather than KV for two reasons: KV is eventually
-consistent with last-write-wins, so a read-modify-write counter silently loses
-updates, and the free plan allows 1,000 KV writes a day — fewer than the
-questions a day of neurons buys, so the meter would break before the tank
-emptied.
+`usage.neurons` Workers AI reports, and the page draws a bar from it. It is a
+Durable Object rather than KV for two reasons: KV is eventually consistent with
+last-write-wins, so a read-modify-write counter silently loses updates, and the
+free plan allows 1,000 KV writes a day — fewer than the questions a day of
+neurons buys, so the meter would break before the tank emptied.
 
 When the allocation runs out Workers AI answers `429` with internal code `3036`.
 That is authoritative where our own tally is not, so it latches the budget and
 stops issuing requests that cannot succeed until 00:00 UTC. `3040` shares the
 same HTTP status but means *out of capacity* and is retried instead — branching
 on the status alone would get one of the two wrong.
-
-A key the visitor typed never reaches the Worker. Relaying it would make the
-Worker the custodian of someone else's key and an open forwarder to any URL they
-name — a worse trade than depending on the provider sending CORS headers, which
-OpenAI, OpenRouter, Groq and LiteLLM all do. The key lives in `sessionStorage`,
-so it survives a reload but not closing the tab.
-
-The deployment's key is the opposite case: a Worker secret cannot be handed to
-the browser, so those calls have to be relayed. `/llm` is therefore a way to
-spend someone else's money, and is gated twice — signed in, and named in
-`GITHUB_ALLOWED_LOGINS`. It also pins the model server-side; letting the caller
-name it invites picking the most expensive one on the key. `/me` reports whether
-an account qualifies so the page knows which form to show, but that flag is a
-hint: `/llm` re-checks on every call.
-
-Signing in otherwise buys conversation persistence and nothing else. No OAuth
-scopes are requested and the GitHub token is discarded after the profile read.
-
-GitHub Copilot is **not** a tier. Its endpoints are browser-reachable — both
-`api.githubcopilot.com/chat/completions` and the `copilot_internal/v2/token`
-endpoint send permissive CORS — but the token endpoint gates on a
-`Copilot-Integration-Id` header, issued only to OAuth apps on GitHub's editor
-integration allowlist. A generic app gets identity and no entitlement, whatever
-the user's subscription.
 
 ## Layout
 
@@ -157,9 +132,11 @@ sit behind one origin — which they do in production.
 
 ## Setup that needs account access
 
-None of this can be done from the repo; it all needs Andrew's own credentials.
-None of it is required for a visitor bringing their own base URL and key — that
-path works without an account.
+Steps 1 and 2 are optional: without them nobody can sign in, and chatting still
+works for everyone on the free tier. Everything else is needed for a deployment.
+
+Storage and the Pages project already exist on the account, and their ids are in
+`wrangler.toml`.
 
 **1. GitHub OAuth app** — register at
 `github.com/settings/developers`. Homepage `https://bolster.help`, callback
@@ -177,12 +154,12 @@ npx wrangler secret put LLM_API_KEY
 npx wrangler secret put LLM_MODEL
 ```
 
-The three `LLM_*` secrets are optional — leaving them unset disables `/llm`
-entirely, and everyone brings their own key. Set `GITHUB_ALLOWED_LOGINS` in
-`wrangler.toml` to say who may spend them.
+The three `LLM_*` secrets are optional — leaving them unset means everyone,
+including allowlisted accounts, uses the free tier. Set `GITHUB_ALLOWED_LOGINS`
+in `wrangler.toml` to say who may spend them when they are set.
 
-**3. Storage** — create both, then replace the two `REPLACE_WITH_*` placeholders
-in `wrangler.toml` with the ids they print.
+**3. Storage** — already created; the ids are in `wrangler.toml`. To rebuild it
+from scratch:
 
 ```sh
 npx wrangler kv namespace create SESSIONS
