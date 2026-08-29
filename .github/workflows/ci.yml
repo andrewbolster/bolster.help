@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # tools.json is a manual snapshot with no refresh trigger, and the proxy
+  # allowlist is hand-written against it. Drift is silent — retrieval starts
+  # offering a tool that no longer exists, or never offers one that does — so
+  # the network checks run on a schedule rather than waiting for someone to
+  # notice. Monday morning, off the hour to avoid the cron stampede.
+  schedule:
+    - cron: "37 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # No dependencies, so nothing to install and no lockfile to cache.
+      - run: node --test tests/
+
+  upstream:
+    name: upstream drift
+    runs-on: ubuntu-latest
+    # Only where a failure means something actionable. On a pull request the
+    # MCP server is not what changed, and a red X for someone else's outage
+    # teaches people to ignore the check.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node --test tests/integration.test.mjs
+        env:
+          CHECK_NETWORK: "1"

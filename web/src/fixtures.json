@@ -35,5 +35,6 @@
   { "prompt": "volume of new build construction work", "expect": "bolster_nisra_construction_output" },
 
   { "prompt": "what has NISRA published recently?", "expect": "bolster_nisra_feed" },
+  { "prompt": "browse recent NISRA publications", "expect": "bolster_rss_nisra_statistics" },
   { "prompt": "read this rss feed for me: https://example.com/feed.xml", "expect": "bolster_rss_read" }
 ]

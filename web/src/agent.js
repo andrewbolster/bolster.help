@@ -1,4 +1,4 @@
-// The tool-calling loop, shared by the chat UI and the bake-off harness.
+// The tool-calling loop.
 
 import { buildIndex, search, toOpenAITools } from "./retrieval.js";
 

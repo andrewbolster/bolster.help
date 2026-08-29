@@ -62,16 +62,47 @@ quantised 7–8B model. `web/src/retrieval.js` scores the user's message against
 the catalogue and passes only the top six schemas per turn — ~1100 tokens mean,
 ~1750 worst case.
 
-## Scripts
+## Tests
 
 ```sh
+npm test                  # everything that runs without configuration
+npm run test:network      # adds the checks that reach mcp.bolster.online
 npm run refresh-tools     # re-snapshot tools/list into web/src/tools.json
-npm run check-retrieval   # assert every fixture's tool ranks in the top 6
-npm run check-agent       # agent loop behaviour and tool payload size
 ```
 
-`check-retrieval` is a gate, not a metric: a tool that misses retrieval is never
-shown to the model, so the failure is unrecoverable at runtime.
+No dependencies and no test framework — `node:test`, which ships with Node 20.
+
+The line the suite draws is the first outbound `fetch`. Routing, CORS, the
+allowlists, body caps and the shared-key gate all resolve before one, so they
+are pure functions of the request and the env and run offline. Anything past
+that boundary needs a deployment, OAuth credentials or a provider key, and is
+skipped with the reason attached rather than faked:
+
+| Gate | Unlocks |
+| --- | --- |
+| `CHECK_NETWORK=1` | the origin sends no CORS headers; `tools.json` matches upstream |
+| `CHECK_DEPLOYED=<url>` | rate limiting actually enforcing; same-origin cookies |
+| `LLM_BASE_URL` + `LLM_API_KEY` | a real completion through the shared key |
+
+A skipped test reports why, so a green run says which assumptions went
+unchecked instead of implying they passed. Two cases are marked `todo` rather
+than skipped: no environment variable makes them run, because driving them
+needs a human at a browser to mint a session.
+
+Three assertions are load-bearing rather than incidental:
+
+- **Retrieval is a gate, not a metric.** The agent sends the top six schemas and
+  nothing else, so a tool ranked seventh is invisible to the model that turn and
+  no prompting recovers it. `recall@6` must be total.
+- **Every allowlisted tool has a fixture.** Otherwise it is a tool nobody has
+  checked is reachable by any phrasing at all.
+- **`bolster_get_precipitation` and `send_contact_message` stay excluded**, by
+  name — one spends a metered third-party key per call, the other delivers mail
+  to a real inbox. The test fails if either is quietly added back.
+
+`tools.json` is a manual snapshot and the allowlist is hand-written against it,
+so nothing keeps them in step automatically. The network checks run weekly in CI
+for that reason; drift there is silent at runtime.
 
 ## Local development
 
