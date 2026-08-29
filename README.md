@@ -112,12 +112,6 @@ local simulator. Workers AI is the reason it exists at all: a config declaring
 credentials. `tests/unit/config.test.mjs` asserts the two files still agree on
 everything they share, so the omissions stay deliberate.
 
-The scripts set `WS_NO_BUFFER_UTIL=1`. Miniflare's websocket library optionally
-loads a native `bufferutil`, resolved by walking up the directory tree — so a
-stale copy in any parent directory gets picked up, and an old enough one exports
-a different API, which crashes the socket on the first masked frame. The
-acceleration buys nothing here.
-
 The line the suite draws is the first outbound `fetch`. Routing, CORS, the
 allowlists, body caps and the tier gate all resolve before one, so they are pure
 functions of the request and the env and run offline. Anything past that

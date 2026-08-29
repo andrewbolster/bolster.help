@@ -13,9 +13,6 @@
 import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
-// WS_NO_BUFFER_UTIL is set by the npm scripts rather than here: the pool runs
-// in its own process and does not inherit a mutation made while this config is
-// evaluated. See the README for why it is set at all.
 
 export default defineConfig({
   test: {

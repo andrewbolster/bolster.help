@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "WS_NO_BUFFER_UTIL=1 vitest run",
-    "test:watch": "WS_NO_BUFFER_UTIL=1 vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:network": "CHECK_NETWORK=1 vitest run --project unit",
     "refresh-tools": "node scripts/refresh-tools.mjs"
   },
