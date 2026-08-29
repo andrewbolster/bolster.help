@@ -151,6 +151,13 @@ export default {
       return chats(request, env, headers, user, id);
     }
 
+    // The Worker is an API, not the site — in production it answers on the same
+    // origin as the page, but reached directly its root is bare. Say where the
+    // site is rather than leaving a bare 404 to look like a broken deployment.
+    if (pathname === "/") {
+      return json({ service: "bolster.help", site: env.SITE_URL ?? "https://bolster.help" }, 200, headers);
+    }
+
     if (pathname !== "/mcp-proxy") return new Response("not found", { status: 404, headers });
     if (request.method !== "POST") return new Response("method not allowed", { status: 405, headers });
 

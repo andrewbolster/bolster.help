@@ -6,10 +6,10 @@
 //
 // A Pages preview has no such route — Pages and the Worker are separate hosts —
 // so it names the Worker explicitly and talks to it cross-origin. The Worker's
-// CORS already allows *.pages.dev. Anonymous inference works fine this way;
-// signing in does not, because a Lax cookie will not cross origins. That is a
-// property of the preview, not a bug, and it is why the auth tests stay gated
-// on a real deployment.
+// CORS already allows *.pages.dev. Chatting works fine this way; signing in
+// does not, because a Lax cookie will not cross origins. That is a property of
+// the preview, not a bug, and it is why the auth tests stay gated on a real
+// deployment.
 const LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const PREVIEW = location.hostname.endsWith(".pages.dev");
 
@@ -17,10 +17,3 @@ const WORKER = "https://bolster-help.andrewbolster.workers.dev";
 
 export const API_ORIGIN = LOCAL ? "http://127.0.0.1:8788" : PREVIEW ? WORKER : "";
 export const PROXY_ENDPOINT = `${API_ORIGIN}/mcp-proxy`;
-
-// sessionStorage, so a key survives a reload but not closing the tab. Anything
-// longer-lived wants encryption at rest and a clear story about what that does
-// and does not defend against; not worth it before the app has users.
-export const CREDENTIALS_KEY = "bolster.help/byok";
-
-export const DEFAULT_BASE_URL = "https://api.openai.com/v1";

@@ -1,16 +1,15 @@
 import { createAgent } from "./agent.js";
 import { McpClient } from "./mcp.js";
-import { createProxyEngine, createRemoteEngine, listModels } from "./providers.js";
-import { API_ORIGIN, CREDENTIALS_KEY, DEFAULT_BASE_URL, PROXY_ENDPOINT } from "./config.js";
+import { createProxyEngine } from "./providers.js";
+import { API_ORIGIN, PROXY_ENDPOINT } from "./config.js";
 
 const el = (id) => document.getElementById(id);
 const HISTORY_KEY = "bolster.help/transcript";
 
-// The agent loop runs here. The server is asked for the MCP hop (the origin
-// sends no CORS headers, so it is unavoidable), somewhere to keep a
-// conversation once signed in, and — only for allowlisted accounts —
-// inference on the deployment's own key.
-const state = { chatId: null, user: null, budget: null };
+// There is no setup step. Inference runs on the deployment's own allocation, so
+// a visitor has nothing to configure and nothing to bring — the page is the
+// chat. Signing in adds one thing: somewhere to keep the conversation.
+const state = { chatId: null, user: null, budget: null, agent: null };
 
 const read = (key, fallback) => {
   try {
@@ -51,44 +50,12 @@ function render(transcript, history) {
   transcript.lastElementChild?.scrollIntoView({ block: "end" });
 }
 
-const credentials = () => ({
-  baseUrl: el("base-url").value.trim() || DEFAULT_BASE_URL,
-  apiKey: el("api-key").value.trim(),
-  model: el("remote-model").value.trim(),
-});
-
-// Which tier applies is the deployment's decision, not the browser's: /usage
-// and /me only say what is on offer, and /llm re-decides on every call. Both
-// hosted tiers are the same endpoint, so the page does not need to know which
-// one it got.
-const usingHostedModel = () => {
-  if (el("use-own-key").checked) return false;
-  return Boolean(state.user?.sharedKey) || Boolean(state.budget?.enabled && !state.budget.exhausted);
-};
-
-function buildEngine() {
-  if (usingHostedModel()) {
-    return createProxyEngine(`${API_ORIGIN}/llm`, (budget) => {
-      state.budget = { ...state.budget, ...budget, enabled: true };
-      renderBudget();
-    });
-  }
-
-  const creds = credentials();
-  if (!creds.apiKey) throw new Error("an API key is required");
-  if (!creds.model) throw new Error("a model name is required");
-  write(CREDENTIALS_KEY, { baseUrl: creds.baseUrl, model: creds.model });
-  return createRemoteEngine(creds);
-}
-
-// The allowance is the deployment's, not the visitor's, so this is public and
-// needs no session. Failing quietly is deliberate: a visitor with their own key
-// does not care, and the Worker re-checks the budget on every call anyway.
+// The allowance belongs to the deployment, not the visitor, so this needs no
+// session. Failing quietly is deliberate: the Worker re-checks on every call.
 async function refreshBudget() {
   try {
     const response = await fetch(`${API_ORIGIN}/usage`);
-    if (!response.ok) return;
-    state.budget = await response.json();
+    if (response.ok) state.budget = await response.json();
   } catch {
     state.budget = null;
   }
@@ -99,9 +66,7 @@ function renderBudget() {
   const bar = el("budget");
   const budget = state.budget;
 
-  // Only shown to visitors actually spending the shared allowance. Someone on
-  // their own key is not drawing it down, so the bar would be noise.
-  if (!budget?.enabled || !usingHostedModel() || state.user?.sharedKey) {
+  if (!budget?.enabled) {
     bar.hidden = true;
     return;
   }
@@ -113,8 +78,8 @@ function renderBudget() {
 
   const resets = new Date(budget.resetsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   el("budget-note").textContent = budget.exhausted
-    ? `Free questions are used up for today. Resets at ${resets} — or add your own key above.`
-    : `Free tier: ${Math.round((1 - used) * 100)}% left today, resets at ${resets}.`;
+    ? `Out of capacity for today — resets at ${resets}.`
+    : `${Math.round((1 - used) * 100)}% of today's capacity left.`;
 }
 
 async function refreshAccount() {
@@ -128,34 +93,13 @@ async function refreshAccount() {
     who.textContent = `Signed in as ${state.user.login}`;
     el("save-chat").hidden = false;
   } catch {
-    // Not signed in, or the Worker isn't reachable. Either way the app works.
+    // Not signed in, or the Worker isn't reachable. The chat works either way.
   }
-  renderSetup();
-}
-
-// A visitor should be able to press Start without reading anything, so the
-// hosted tier is offered by default and the key form is folded away until
-// someone asks for it — or until there is no hosted tier left to offer.
-function renderSetup() {
-  const offer = usingHostedModel() || Boolean(state.user?.sharedKey) || Boolean(state.budget?.enabled);
-  const note = el("shared-note");
-  note.hidden = !offer;
-
-  if (offer) {
-    el("shared-note-text").textContent = state.user?.sharedKey
-      ? "This deployment has a model configured for your account."
-      : state.budget?.exhausted
-        ? "Today's free questions are used up — bring your own key, or come back tomorrow."
-        : "Ask away — this deployment runs a small model for you, free.";
-  }
-
-  el("remote-options").hidden = offer && !el("use-own-key").checked && !state.budget?.exhausted;
-  renderBudget();
 }
 
 async function saveChat(history) {
-  const state_ = el("save-state");
-  state_.textContent = "Saving…";
+  const status = el("save-state");
+  status.textContent = "Saving…";
   try {
     const response = await fetch(`${API_ORIGIN}/chats`, {
       method: "POST",
@@ -168,27 +112,46 @@ async function saveChat(history) {
       }),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const body = await response.json();
-    state.chatId = body.id;
-    state_.textContent = "Saved.";
+    state.chatId = (await response.json()).id;
+    status.textContent = "Saved.";
   } catch (err) {
-    state_.textContent = `Could not save: ${err.message}`;
+    status.textContent = `Could not save: ${err.message}`;
   }
 }
 
-function main() {
-  const remembered = read(CREDENTIALS_KEY, {});
-  el("base-url").value = remembered.baseUrl ?? DEFAULT_BASE_URL;
-  el("remote-model").value = remembered.model ?? "";
+// Built once, in the background. The composer is live before this resolves; a
+// message sent early waits on the same promise rather than being rejected.
+async function buildAgent() {
+  const engine = createProxyEngine(`${API_ORIGIN}/llm`, (budget) => {
+    state.budget = { ...state.budget, ...budget, enabled: true };
+    renderBudget();
+  });
 
-  el("use-own-key").addEventListener("change", renderSetup);
+  const [snapshot, mcp] = await Promise.all([
+    fetch("./src/tools.json").then((r) => r.json()),
+    (async () => {
+      const client = new McpClient(PROXY_ENDPOINT);
+      await client.connect();
+      return client;
+    })(),
+  ]);
+
+  return createAgent({ tools: snapshot.tools, engine, mcp });
+}
+
+function main() {
+  const history = read(HISTORY_KEY, []);
+  const transcript = el("transcript");
+  render(transcript, history);
 
   refreshAccount();
   refreshBudget();
 
-  const history = read(HISTORY_KEY, []);
-  const transcript = el("transcript");
-  render(transcript, history);
+  // Kick off immediately; the first message awaits whatever this settles to.
+  state.agent = buildAgent().catch((err) => {
+    el("progress").textContent = `Could not reach the tools: ${err.message}`;
+    return null;
+  });
 
   el("signin").addEventListener("click", () => {
     const back = encodeURIComponent(location.href);
@@ -197,52 +160,9 @@ function main() {
 
   el("save-chat").addEventListener("click", () => saveChat(history));
 
-  el("list-models").addEventListener("click", async () => {
-    const progress = el("progress");
-    try {
-      const names = await listModels(credentials());
-      progress.textContent = names.length
-        ? `${names.length} models: ${names.slice(0, 12).join(", ")}`
-        : "That endpoint listed no models.";
-    } catch (err) {
-      progress.textContent = `Could not list models: ${err.message}`;
-    }
-  });
-
-  el("load").addEventListener("click", async () => {
-    const button = el("load");
-    const progress = el("progress");
-    button.disabled = true;
-    progress.textContent = "Starting…";
-
-    try {
-      const [engine, snapshot, mcp] = await Promise.all([
-        buildEngine(),
-        fetch("./src/tools.json").then((r) => r.json()),
-        (async () => {
-          const client = new McpClient(PROXY_ENDPOINT);
-          await client.connect();
-          return client;
-        })(),
-      ]);
-
-      startChat(createAgent({ tools: snapshot.tools, engine, mcp }), history, transcript);
-      el("setup").hidden = true;
-      el("chat").hidden = false;
-      el("prompt").focus();
-    } catch (err) {
-      progress.textContent = `Could not start: ${err.message}`;
-      button.disabled = false;
-    }
-  });
-}
-
-function startChat(agent, history, transcript) {
-  const form = el("composer");
-  const input = el("prompt");
-
-  form.addEventListener("submit", async (event) => {
+  el("composer").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const input = el("prompt");
     const question = input.value.trim();
     if (!question) return;
 
@@ -256,8 +176,11 @@ function startChat(agent, history, transcript) {
     const used = [];
 
     try {
-      // Only the plain user/assistant turns are replayed: tool payloads are
-      // large and already summarised into the answer that followed them.
+      const agent = await state.agent;
+      if (!agent) throw new Error("not connected");
+
+      // Only plain user/assistant turns are replayed: tool payloads are large
+      // and already summarised into the answer that followed them.
       const priorTurns = history.slice(0, -2).map(({ role, content }) => ({ role, content }));
 
       const { content } = await agent(priorTurns, question, {
