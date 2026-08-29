@@ -1,0 +1,43 @@
+name: pages
+
+# Publishes web/ to GitHub Pages, which serves bolster.help.
+#
+# The API is a Cloudflare Worker on a different origin, so calls from the page
+# are cross-origin by design: the Worker allowlists this site and answers the
+# preflight. That is the trade for not moving the domain onto Cloudflare, and
+# it costs one extra round trip per request.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race for the live site; queue instead of cancelling, so
+# the last push to land is the one that ends up served.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      # No build step: web/ is plain HTML, CSS and ES modules, served as-is.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,19 +1,16 @@
-// Three places this runs, and the Worker is somewhere different in each.
+// The page and the API are always on different origins.
 //
-// In production it is routed at bolster.help itself, so calls are same-origin:
-// no preflight, and the session cookie flows under SameSite=Lax. That is the
-// arrangement the auth design depends on.
+// GitHub Pages serves the site at bolster.help; the API is a Cloudflare Worker.
+// Keeping them apart avoids moving the domain onto Cloudflare, and costs a CORS
+// preflight per call — the Worker allowlists this origin and answers it.
 //
-// A Pages preview has no such route — Pages and the Worker are separate hosts —
-// so it names the Worker explicitly and talks to it cross-origin. The Worker's
-// CORS already allows *.pages.dev. Chatting works fine this way; signing in
-// does not, because a Lax cookie will not cross origins. That is a property of
-// the preview, not a bug, and it is why the auth tests stay gated on a real
-// deployment.
+// The consequence worth knowing: a `SameSite=Lax` cookie will not travel
+// cross-site, so signing in needs the session cookie issued as
+// `SameSite=None; Secure`. Chatting is unaffected, since it uses no cookie.
 const LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-const PREVIEW = location.hostname.endsWith(".pages.dev");
 
-const WORKER = "https://bolster-help.andrewbolster.workers.dev";
+export const API_ORIGIN = LOCAL
+  ? "http://127.0.0.1:8788"
+  : "https://bolster-help.andrewbolster.workers.dev";
 
-export const API_ORIGIN = LOCAL ? "http://127.0.0.1:8788" : PREVIEW ? WORKER : "";
 export const PROXY_ENDPOINT = `${API_ORIGIN}/mcp-proxy`;
