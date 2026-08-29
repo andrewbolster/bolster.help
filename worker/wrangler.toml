@@ -10,8 +10,32 @@ ALLOWED_ORIGINS = "https://bolster.help,http://localhost:5173"
 # is the right default: every other visitor brings their own key.
 GITHUB_ALLOWED_LOGINS = "andrewbolster"
 
+# Chosen by measuring tool-selection accuracy against the retrieval fixtures,
+# not by price: 12/12 on the cases that matter at ~1.2 neurons a round. The
+# reasoning models cost ten times as much and chose worse.
+WORKERS_AI_MODEL = "@cf/ibm-granite/granite-4.0-h-micro"
+
 # LLM_BASE_URL, LLM_API_KEY and LLM_MODEL are secrets, not vars — set them with
-# `wrangler secret put`. Leaving them unset disables /llm entirely.
+# `wrangler secret put`. Leaving them unset means allowlisted accounts fall back
+# to the same free tier as everyone else.
+
+# Inference for visitors who are not signed in. On the Workers Free plan the
+# 10,000 neuron/day allocation is enforced by Cloudflare and cannot be exceeded,
+# so this cannot produce a bill.
+[ai]
+binding = "AI"
+
+# The neuron counter. A Durable Object rather than KV: KV is eventually
+# consistent with last-write-wins, so a read-modify-write counter loses updates,
+# and its 1K/day write cap is lower than the questions a day of neurons buys.
+[[durable_objects.bindings]]
+name = "NEURON_BUDGET"
+class_name = "NeuronBudget"
+
+# SQLite-backed is the only kind available on the Workers Free plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["NeuronBudget"]
 
 # Cloudflare's rate-limiting binding rather than a KV counter: the free tier
 # allows 1K KV writes/day, which a per-request counter would exhaust in minutes.
@@ -20,6 +44,16 @@ name = "MCP_RATE_LIMIT"
 type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 30, period = 60 }
+
+# Tighter than the MCP proxy, and for a different reason. The risk on the free
+# tier is not cost — Cloudflare caps that — but fairness: without this, one
+# script can spend the whole day's allocation in minutes and every other visitor
+# gets a 429 until midnight UTC.
+[[unsafe.bindings]]
+name = "LLM_RATE_LIMIT"
+type = "ratelimit"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }
 
 # Sessions only — one write per login, so the 1K/day write cap is not a concern.
 # Replace the id after `wrangler kv namespace create SESSIONS`.

@@ -4,11 +4,11 @@
 // refusal. Every case below returns before the provider is contacted; the one
 // case that does reach a provider is skip-gated in integration.test.mjs.
 
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
-import { allowedLogins, canUseSharedKey, llm } from "../worker/src/llm.js";
-import { fakeEnv, post, request } from "./helpers.mjs";
+import { allowedLogins, canUseSharedKey, llm } from "../../worker/src/llm.js";
+import { fakeEnv, post, request } from "../helpers.mjs";
 
 const configured = (overrides = {}) => ({
   LLM_API_KEY: "sk-test",

@@ -5,11 +5,11 @@
 // integration.test.mjs, skip-gated, so nothing green here implies a working hop
 // to mcp.bolster.online.
 
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
-import worker from "../worker/src/index.js";
-import { fakeEnv, post, rateLimit, request, withSession } from "./helpers.mjs";
+import worker from "../../worker/src/index.js";
+import { fakeEnv, post, rateLimit, request, withSession } from "../helpers.mjs";
 
 const rpc = (method, params) => ({ jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) });
 const callTool = (name) => rpc("tools/call", { name, arguments: {} });

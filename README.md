@@ -13,8 +13,36 @@ this site does not duplicate it.
 
 | Path | Who supplies the key | Route |
 | --- | --- | --- |
+| Free tier | Cloudflare's daily Workers AI allocation | Browser → Worker `/llm` → `env.AI` |
 | Visitor's own | Base URL, key and model typed into the page | Browser straight to the provider |
 | Deployment's | `LLM_*` Worker secrets | Browser → Worker `/llm` → provider |
+
+Anyone can ask a question without signing in or bringing a key: the Worker runs
+`@cf/ibm-granite/granite-4.0-h-micro` on Cloudflare's free allocation of 10,000
+neurons a day. On the Workers Free plan that ceiling is enforced by Cloudflare,
+so the free tier cannot produce a bill — the same fail-closed posture as leaving
+the account without a payment method.
+
+The model was picked by measuring tool selection against the retrieval fixtures,
+not by price. It scored 12/12 on the cases that matter — including the three
+near-identical NISRA index tools — at ~1.2 neurons a round. The reasoning models
+cost roughly ten times as much and chose worse: `glm-4.7-flash` managed 1/4,
+spending 280 completion tokens to get there. A wrong tool is a wrong answer,
+however little it cost.
+
+`NeuronBudget`, a Durable Object, records what each reply actually cost from the
+`usage.neurons` Workers AI reports, and the page draws a bar from it. The
+counter is a Durable Object rather than KV for two reasons: KV is eventually
+consistent with last-write-wins, so a read-modify-write counter silently loses
+updates, and the free plan allows 1,000 KV writes a day — fewer than the
+questions a day of neurons buys, so the meter would break before the tank
+emptied.
+
+When the allocation runs out Workers AI answers `429` with internal code `3036`.
+That is authoritative where our own tally is not, so it latches the budget and
+stops issuing requests that cannot succeed until 00:00 UTC. `3040` shares the
+same HTTP status but means *out of capacity* and is retried instead — branching
+on the status alone would get one of the two wrong.
 
 A key the visitor typed never reaches the Worker. Relaying it would make the
 Worker the custodian of someone else's key and an open forwarder to any URL they
@@ -70,13 +98,25 @@ npm run test:network      # adds the checks that reach mcp.bolster.online
 npm run refresh-tools     # re-snapshot tools/list into web/src/tools.json
 ```
 
-No dependencies and no test framework — `node:test`, which ships with Node 20.
+Vitest, in two projects. `unit` is plain Node — retrieval scoring, the agent
+loop, catalogue integrity. `worker` runs inside workerd through Cloudflare's
+own plugin, so KV and the `NeuronBudget` Durable Object are real rather than
+stood in for. That matters most for the budget: it exists because KV cannot
+hold a counter safely, and a hand-written fake would assert the consistency we
+wanted instead of the one workerd gives us.
+
+`worker/wrangler.test.toml` is the production config minus the bindings with no
+local simulator. Workers AI is the reason it exists at all: a config declaring
+`[ai]` sends the plugin into a remote proxy session that demands
+`CLOUDFLARE_API_TOKEN`, which would make the suite unrunnable without
+credentials. `tests/unit/config.test.mjs` asserts the two files still agree on
+everything they share, so the omissions stay deliberate.
 
 The line the suite draws is the first outbound `fetch`. Routing, CORS, the
-allowlists, body caps and the shared-key gate all resolve before one, so they
-are pure functions of the request and the env and run offline. Anything past
-that boundary needs a deployment, OAuth credentials or a provider key, and is
-skipped with the reason attached rather than faked:
+allowlists, body caps and the tier gate all resolve before one, so they are pure
+functions of the request and the env and run offline. Anything past that
+boundary needs a deployment, OAuth credentials or a provider key, and is skipped
+with the reason attached rather than faked:
 
 | Gate | Unlocks |
 | --- | --- |

@@ -2,11 +2,11 @@
 // nothing else, so a tool that ranks seventh is invisible to the model for that
 // turn and no amount of prompting recovers it. recall@6 must therefore be total.
 
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
-import { buildIndex, search, summarize, tokenize } from "../web/src/retrieval.js";
-import { snapshot, fixtures } from "./helpers.mjs";
+import { buildIndex, search, summarize, tokenize } from "../../web/src/retrieval.js";
+import { snapshot, fixtures } from "../helpers.mjs";
 
 const CANDIDATES = 6;
 const index = buildIndex(snapshot.tools);
@@ -20,9 +20,9 @@ const ranked = fixtures.map((fixture) => {
 const recallAt = (k) => ranked.filter((r) => r.rank <= k).length;
 
 describe("retrieval", () => {
-  it("ranks every fixture's tool inside the candidate window", (t) => {
+  it("ranks every fixture's tool inside the candidate window", () => {
     for (const k of [1, 3, 6, 8]) {
-      t.diagnostic(`recall@${k} ${recallAt(k)}/${ranked.length}`);
+      console.info(`recall@${k} ${recallAt(k)}/${ranked.length}`);
     }
 
     const missed = ranked.filter((r) => r.rank > CANDIDATES);

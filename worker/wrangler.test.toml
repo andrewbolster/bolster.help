@@ -1,0 +1,39 @@
+# Test-only bindings.
+#
+# This exists for one reason: Workers AI has no local simulator, so a config
+# containing `[ai]` makes the Vitest plugin open a remote proxy session and
+# demand CLOUDFLARE_API_TOKEN. That would mean the suite could not run without
+# credentials — in CI, or for anyone cloning the repo.
+#
+# So the AI binding is omitted here and tests pass their own stand-in. What is
+# kept is the Durable Object, which miniflare runs for real: its consistency
+# guarantee is the whole reason NeuronBudget exists, and a hand-written fake
+# would assert the guarantee we wanted rather than the one we get.
+#
+# The rate-limit and D1 bindings are omitted for the same reason as AI — no
+# useful local behaviour — and stood in for where a test needs them.
+#
+# tests/worker/config.test.mjs asserts this file and wrangler.toml agree on
+# everything they share, so the omissions stay deliberate rather than drifting.
+
+name = "bolster-help-test"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+
+[vars]
+MCP_ORIGIN = "https://mcp.bolster.online/mcp"
+ALLOWED_ORIGINS = "https://bolster.help,http://localhost:5173"
+GITHUB_ALLOWED_LOGINS = "andrewbolster"
+WORKERS_AI_MODEL = "@cf/ibm-granite/granite-4.0-h-micro"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "test-sessions"
+
+[[durable_objects.bindings]]
+name = "NEURON_BUDGET"
+class_name = "NeuronBudget"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["NeuronBudget"]

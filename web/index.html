@@ -26,7 +26,7 @@
         <h2>Point it at a model</h2>
 
         <p id="shared-note" hidden>
-          This deployment has a model configured for your account.
+          <span id="shared-note-text"></span>
           <label class="choice">
             <input id="use-own-key" type="checkbox" />
             Use my own key instead
@@ -55,6 +55,10 @@
       </section>
 
       <section id="chat" hidden>
+        <div id="budget" hidden>
+          <div id="budget-track"><div id="budget-fill"></div></div>
+          <p id="budget-note"></p>
+        </div>
         <ol id="transcript"></ol>
         <form id="composer">
           <label class="visually-hidden" for="prompt">Your question</label>

@@ -6,12 +6,12 @@
 // model actually picks is a property of the model, not of this code, and is not
 // asserted here.
 
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
-import { createAgent } from "../web/src/agent.js";
-import { buildIndex, search, toOpenAITools } from "../web/src/retrieval.js";
-import { snapshot, fixtures } from "./helpers.mjs";
+import { createAgent } from "../../web/src/agent.js";
+import { buildIndex, search, toOpenAITools } from "../../web/src/retrieval.js";
+import { snapshot, fixtures } from "../helpers.mjs";
 
 // A stand-in for the provider: replays queued replies and records the tool
 // schemas it was handed each round.
@@ -151,9 +151,9 @@ describe("tool payload budget", () => {
   const worst = Math.max(...perFixture);
   const mean = Math.round(perFixture.reduce((a, b) => a + b, 0) / perFixture.length);
 
-  it("leaves room for a conversation in a small quantised model", (t) => {
-    t.diagnostic(`all ${snapshot.tools.length} tools: ~${tokens(toOpenAITools(snapshot.tools))} tokens`);
-    t.diagnostic(`top 6: ~${mean} mean, ~${worst} worst`);
+  it("leaves room for a conversation in a small quantised model", () => {
+    console.info(`all ${snapshot.tools.length} tools: ~${tokens(toOpenAITools(snapshot.tools))} tokens`);
+    console.info(`top 6: ~${mean} mean, ~${worst} worst`);
     assert.ok(worst < 3000, `worst-case payload ${worst} tokens is too large`);
   });
 });

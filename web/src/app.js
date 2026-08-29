@@ -10,7 +10,7 @@ const HISTORY_KEY = "bolster.help/transcript";
 // sends no CORS headers, so it is unavoidable), somewhere to keep a
 // conversation once signed in, and — only for allowlisted accounts —
 // inference on the deployment's own key.
-const state = { chatId: null, user: null };
+const state = { chatId: null, user: null, budget: null };
 
 const read = (key, fallback) => {
   try {
@@ -57,18 +57,64 @@ const credentials = () => ({
   model: el("remote-model").value.trim(),
 });
 
-// Offering the shared key is the deployment's decision, not the browser's:
-// /me reports whether this account may use it, and /llm re-checks on every call.
-const usingSharedKey = () => Boolean(state.user?.sharedKey) && !el("use-own-key").checked;
+// Which tier applies is the deployment's decision, not the browser's: /usage
+// and /me only say what is on offer, and /llm re-decides on every call. Both
+// hosted tiers are the same endpoint, so the page does not need to know which
+// one it got.
+const usingHostedModel = () => {
+  if (el("use-own-key").checked) return false;
+  return Boolean(state.user?.sharedKey) || Boolean(state.budget?.enabled && !state.budget.exhausted);
+};
 
 function buildEngine() {
-  if (usingSharedKey()) return createProxyEngine(`${API_ORIGIN}/llm`);
+  if (usingHostedModel()) {
+    return createProxyEngine(`${API_ORIGIN}/llm`, (budget) => {
+      state.budget = { ...state.budget, ...budget, enabled: true };
+      renderBudget();
+    });
+  }
 
   const creds = credentials();
   if (!creds.apiKey) throw new Error("an API key is required");
   if (!creds.model) throw new Error("a model name is required");
   write(CREDENTIALS_KEY, { baseUrl: creds.baseUrl, model: creds.model });
   return createRemoteEngine(creds);
+}
+
+// The allowance is the deployment's, not the visitor's, so this is public and
+// needs no session. Failing quietly is deliberate: a visitor with their own key
+// does not care, and the Worker re-checks the budget on every call anyway.
+async function refreshBudget() {
+  try {
+    const response = await fetch(`${API_ORIGIN}/usage`);
+    if (!response.ok) return;
+    state.budget = await response.json();
+  } catch {
+    state.budget = null;
+  }
+  renderBudget();
+}
+
+function renderBudget() {
+  const bar = el("budget");
+  const budget = state.budget;
+
+  // Only shown to visitors actually spending the shared allowance. Someone on
+  // their own key is not drawing it down, so the bar would be noise.
+  if (!budget?.enabled || !usingHostedModel() || state.user?.sharedKey) {
+    bar.hidden = true;
+    return;
+  }
+
+  const used = Math.min(budget.used / budget.limit, 1);
+  bar.hidden = false;
+  bar.className = budget.exhausted ? "spent" : used > 0.8 ? "low" : "";
+  el("budget-fill").style.width = `${Math.max(used * 100, 1)}%`;
+
+  const resets = new Date(budget.resetsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  el("budget-note").textContent = budget.exhausted
+    ? `Free questions are used up for today. Resets at ${resets} — or add your own key above.`
+    : `Free tier: ${Math.round((1 - used) * 100)}% left today, resets at ${resets}.`;
 }
 
 async function refreshAccount() {
@@ -81,14 +127,30 @@ async function refreshAccount() {
     who.hidden = false;
     who.textContent = `Signed in as ${state.user.login}`;
     el("save-chat").hidden = false;
-
-    if (state.user.sharedKey) {
-      el("shared-note").hidden = false;
-      el("remote-options").hidden = true;
-    }
   } catch {
     // Not signed in, or the Worker isn't reachable. Either way the app works.
   }
+  renderSetup();
+}
+
+// A visitor should be able to press Start without reading anything, so the
+// hosted tier is offered by default and the key form is folded away until
+// someone asks for it — or until there is no hosted tier left to offer.
+function renderSetup() {
+  const offer = usingHostedModel() || Boolean(state.user?.sharedKey) || Boolean(state.budget?.enabled);
+  const note = el("shared-note");
+  note.hidden = !offer;
+
+  if (offer) {
+    el("shared-note-text").textContent = state.user?.sharedKey
+      ? "This deployment has a model configured for your account."
+      : state.budget?.exhausted
+        ? "Today's free questions are used up — bring your own key, or come back tomorrow."
+        : "Ask away — this deployment runs a small model for you, free.";
+  }
+
+  el("remote-options").hidden = offer && !el("use-own-key").checked && !state.budget?.exhausted;
+  renderBudget();
 }
 
 async function saveChat(history) {
@@ -119,11 +181,10 @@ function main() {
   el("base-url").value = remembered.baseUrl ?? DEFAULT_BASE_URL;
   el("remote-model").value = remembered.model ?? "";
 
-  el("use-own-key").addEventListener("change", (event) => {
-    el("remote-options").hidden = !event.target.checked;
-  });
+  el("use-own-key").addEventListener("change", renderSetup);
 
   refreshAccount();
+  refreshBudget();
 
   const history = read(HISTORY_KEY, []);
   const transcript = el("transcript");
