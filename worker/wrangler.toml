@@ -59,10 +59,10 @@ simple = { limit = 10, period = 60 }
 # Replace the id after `wrangler kv namespace create SESSIONS`.
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "7683a8d90ea6451bace7e2458cd8fe17"
 
 # Replace the id after `wrangler d1 create bolster-help`.
 [[d1_databases]]
 binding = "DB"
 database_name = "bolster-help"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "81abb174-fba4-4181-9e6f-adef56df939f"
