@@ -11,18 +11,19 @@
 //   GITHUB_CLIENT_ID / _SECRET           OAuth round-trip
 //   LLM_BASE_URL / LLM_API_KEY           inference on a real provider
 
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
-import { ALLOWED_TOOLS } from "../worker/src/allowlist.js";
+import { ALLOWED_TOOLS } from "../../worker/src/allowlist.js";
 import {
   deployedOrigin,
+  gate,
   mcpOrigin,
   needsDeployment,
   needsNetwork,
   needsProvider,
   snapshot,
-} from "./helpers.mjs";
+} from "../helpers.mjs";
 
 // FastMCP's streamable-HTTP transport is stateful: `initialize` issues an
 // mcp-session-id and every later call must carry it, or the origin answers 400
@@ -80,7 +81,7 @@ describe("the MCP origin", () => {
   // The single assumption the Worker exists to work around. If this ever starts
   // sending CORS headers, the proxy stops being mandatory — though it would
   // still be the only place the allowlist and rate limit live.
-  it("sends no CORS headers, which is why the proxy is mandatory", { skip: needsNetwork }, async () => {
+  gate(it, needsNetwork)("sends no CORS headers, which is why the proxy is mandatory", async () => {
     const response = await fetch(mcpOrigin, {
       method: "OPTIONS",
       headers: { origin: "https://bolster.help", "access-control-request-method": "POST" },
@@ -95,7 +96,7 @@ describe("the MCP origin", () => {
   // tools.json is a manual snapshot with no trigger to refresh it. Stale
   // entries fail silently: retrieval offers the model a tool that no longer
   // exists, or never offers one that does.
-  it("still exposes exactly the tools in the snapshot", { skip: needsNetwork }, async () => {
+  gate(it, needsNetwork)("still exposes exactly the tools in the snapshot", async () => {
     const rpc = await connect(mcpOrigin);
     const live = new Set((await rpc("tools/list")).tools.map((t) => t.name));
     const known = new Set(snapshot.tools.map((t) => t.name));
@@ -112,7 +113,7 @@ describe("the MCP origin", () => {
     );
   });
 
-  it("answers an allowlisted tool call", { skip: needsNetwork }, async () => {
+  gate(it, needsNetwork)("answers an allowlisted tool call", async () => {
     const name = "bolster_ni_executive";
     assert.ok(ALLOWED_TOOLS.has(name), "pick a tool the proxy would actually forward");
 
@@ -129,7 +130,7 @@ describe("the MCP origin", () => {
 describe("the deployed Worker", () => {
   // Inert under `wrangler dev --local`: the binding exists but never refuses,
   // so only a deployment can show the limit actually enforcing.
-  it("rate limits a burst to 429", { skip: needsDeployment }, async () => {
+  gate(it, needsDeployment)("rate limits a burst to 429", async () => {
     const burst = await Promise.all(
       Array.from({ length: 40 }, () =>
         fetch(`${deployedOrigin}/mcp-proxy`, rpc("tools/list")).then((r) => r.status),
@@ -138,7 +139,7 @@ describe("the deployed Worker", () => {
     assert.ok(burst.includes(429), `no request was limited; saw ${[...new Set(burst)].join(", ")}`);
   });
 
-  it("serves the proxy and the page from one origin", { skip: needsDeployment }, async () => {
+  gate(it, needsDeployment)("serves the proxy and the page from one origin", async () => {
     // SameSite=Lax means the session cookie only travels if the page and the
     // Worker share an origin. In development they do not, which is why auth is
     // untestable there; in production this is what makes it work.
@@ -152,23 +153,19 @@ describe("the deployed Worker", () => {
   // minting one means a human at a browser. Writing it means either a stored
   // session fixture or a headless login against GitHub — a decision not yet
   // taken, so the gap is recorded rather than papered over.
-  it(
-    "persists a conversation across a session",
-    { todo: "needs a signed-in session cookie — blocked on the OAuth round-trip below" },
-    () => {},
+  it.todo(
+    "persists a conversation across a session — needs a signed-in session cookie, blocked on the OAuth round-trip below",
   );
 });
 
 describe("GitHub OAuth", () => {
-  it(
-    "completes the round-trip and mints a session",
-    { todo: "needs GITHUB_CLIENT_ID/SECRET, and the authorize step needs a human at a browser" },
-    () => {},
+  it.todo(
+    "completes the round-trip and mints a session — needs GITHUB_CLIENT_ID/SECRET, and the authorize step needs a human at a browser",
   );
 });
 
 describe("the shared key", () => {
-  it("relays a completion to the configured provider", { skip: needsProvider }, async () => {
+  gate(it, needsProvider)("relays a completion to the configured provider", async () => {
     const endpoint = `${process.env.LLM_BASE_URL.replace(/\/+$/, "")}/chat/completions`;
     const response = await fetch(endpoint, {
       method: "POST",

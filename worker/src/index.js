@@ -8,7 +8,9 @@
 import { ALLOWED_METHODS, ALLOWED_TOOLS } from "./allowlist.js";
 import { callback, login, logout, session } from "./auth.js";
 import { chats } from "./chats.js";
-import { canUseSharedKey, llm } from "./llm.js";
+import { canUseSharedKey, llm, usage } from "./llm.js";
+
+export { NeuronBudget } from "./budget.js";
 
 const DEFAULT_ORIGINS = "https://bolster.help,http://localhost:5173";
 const MAX_BODY_BYTES = 16 * 1024;
@@ -123,8 +125,23 @@ export default {
         : json({ error: "not signed in" }, 401, headers);
     }
 
+    // Public: it reports the deployment's own allowance, not anything about
+    // the caller, and the page needs it before anyone has signed in.
+    if (pathname === "/usage") return json(await usage(env), 200, headers);
+
     if (pathname === "/llm") {
-      return llm(request, env, headers, await session(request, env));
+      const user = await session(request, env);
+      // Signed-in callers are exempt: they are identifiable, and the fairness
+      // problem this guards against is anonymous traffic draining a shared
+      // allowance that resets only at midnight UTC.
+      if (env.LLM_RATE_LIMIT && !user) {
+        const ip = request.headers.get("cf-connecting-ip") ?? "anonymous";
+        const { success } = await env.LLM_RATE_LIMIT.limit({ key: ip });
+        if (!success) {
+          return json({ error: "rate limited" }, 429, { ...headers, "retry-after": "60" });
+        }
+      }
+      return llm(request, env, headers, user);
     }
 
     if (pathname === "/chats" || pathname.startsWith("/chats/")) {

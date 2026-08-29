@@ -40,9 +40,14 @@ export function createRemoteEngine({ baseUrl, apiKey, model }) {
   };
 }
 
-// No key, no base URL, no model name: /llm supplies all three from the
-// deployment's secrets and rejects anyone not on the allowlist.
-export function createProxyEngine(endpoint) {
+// No key, no base URL, no model name: /llm supplies all three and decides which
+// tier the caller gets — the deployment's own credentials for an allowlisted
+// account, Cloudflare's free allocation for everyone else.
+//
+// Free-tier replies carry the allowance left after serving them, so `onBudget`
+// keeps the bar current without a second round trip. It also fires on refusal:
+// a 429 is exactly when the number changed and the page most needs to say so.
+export function createProxyEngine(endpoint, onBudget = () => {}) {
   return {
     chat: {
       completions: {
@@ -56,9 +61,13 @@ export function createProxyEngine(endpoint) {
 
           if (!response.ok) {
             const detail = await response.json().catch(() => ({}));
+            if (detail.usage) onBudget(detail.usage);
             throw new Error(detail.error ?? `HTTP ${response.status}`);
           }
-          return response.json();
+
+          const body = await response.json();
+          if (body.usage_budget) onBudget(body.usage_budget);
+          return body;
         },
       },
     },

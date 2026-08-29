@@ -18,15 +18,20 @@ permissions:
 
 jobs:
   test:
-    name: unit
+    name: unit and worker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      # No dependencies, so nothing to install and no lockfile to cache.
-      - run: node --test tests/
+          cache: npm
+      - run: npm ci
+      # Runs both projects: plain Node for the pure logic, and workerd via
+      # Cloudflare's plugin for anything touching a binding. No credentials
+      # needed — the test wrangler config omits the bindings that would
+      # require a remote proxy session.
+      - run: npm test
 
   upstream:
     name: upstream drift
@@ -40,6 +45,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: node --test tests/integration.test.mjs
-        env:
-          CHECK_NETWORK: "1"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:network
