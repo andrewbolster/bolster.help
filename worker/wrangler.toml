@@ -33,10 +33,20 @@ binding = "AI"
 name = "NEURON_BUDGET"
 class_name = "NeuronBudget"
 
-# SQLite-backed is the only kind available on the Workers Free plan.
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["NeuronBudget"]
+# Declarative in preference to the legacy [[migrations]] array: that array
+# tracks lifecycle by an ever-growing list of tags, and a Worker whose
+# provisioning history came from the raw scripts API (see git history of
+# worker/deploy.sh) doesn't necessarily agree with wrangler about which tags
+# are already applied — deploying with `tag = "v1"` here once failed with
+# "Cannot apply new-sqlite-class migration ... already depended on by
+# existing Durable Objects [code: 10074]" even though the class had been live
+# for months. `exports` instead declares the class's current desired state;
+# Cloudflare reconciles that against what's actually provisioned rather than
+# replaying a migration step, so re-declaring the same live entry on every
+# deploy is a no-op by design, not by luck.
+[exports.NeuronBudget]
+type = "durable-object"
+storage = "sqlite"
 
 # Sessions only — one write per login, so the 1K/day write cap is not a concern.
 # Replace the id after `wrangler kv namespace create SESSIONS`.
