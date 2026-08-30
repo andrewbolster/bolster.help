@@ -180,6 +180,25 @@ Session cookies will not flow between the static server on 5173 and wrangler on
 8788 under `SameSite=Lax`, so auth is only testable once both sit behind one
 origin — which they do in production.
 
+## Deploying
+
+`.github/workflows/worker.yml` deploys `worker/` on every push to `main` that
+touches it, gated on the same test suite this README describes above. Nothing
+else is needed for a routine code change to go live.
+
+For an emergency or out-of-band deploy:
+
+```sh
+cd worker
+CLOUDFLARE_API_TOKEN=... npx wrangler deploy
+```
+
+`wrangler deploy` reads `wrangler.toml` directly — there is no separate
+binding list to keep in step with it, and no migration flag to remember:
+Cloudflare tracks which Durable Object migration tags a script has already
+applied, so the `[[migrations]]` block in `wrangler.toml` is safe to leave in
+place and redeploy against indefinitely.
+
 ## Setup that needs account access
 
 Steps 1 and 2 are optional: without them nobody can sign in, and chatting still

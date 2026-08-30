@@ -1,6 +1,7 @@
 name = "bolster-help"
 main = "src/index.js"
 compatibility_date = "2026-05-01"
+account_id = "1a929e6f9bfe075e1a8dd9f9003497d1"
 
 [vars]
 MCP_ORIGIN = "https://mcp.bolster.online/mcp"
