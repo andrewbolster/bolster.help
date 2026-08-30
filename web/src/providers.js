@@ -27,7 +27,12 @@ export function createProxyEngine(endpoint, onBudget = () => {}) {
           if (!response.ok) {
             const detail = await response.json().catch(() => ({}));
             if (detail.usage) onBudget(detail.usage);
-            throw new Error(detail.error ?? `HTTP ${response.status}`);
+            // The reason travels with the error so the page can say something
+            // useful rather than relaying a sentence written for a log.
+            const failure = new Error(detail.error ?? `HTTP ${response.status}`);
+            failure.reason = detail.reason ?? (response.status === 429 ? "exhausted" : "unknown");
+            failure.status = response.status;
+            throw failure;
           }
 
           const body = await response.json();

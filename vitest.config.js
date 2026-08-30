@@ -25,6 +25,16 @@ export default defineConfig({
         },
       },
       {
+        // The sidebar is DOM code — rendering rows, delegating clicks, moving
+        // focus — and none of that is exercised by testing the store beneath
+        // it. happy-dom is enough to drive it without a browser.
+        test: {
+          name: "dom",
+          environment: "happy-dom",
+          include: ["tests/dom/**/*.test.mjs"],
+        },
+      },
+      {
         plugins: [
           cloudflareTest({
             // Not wrangler.toml: that file declares the AI binding, which has

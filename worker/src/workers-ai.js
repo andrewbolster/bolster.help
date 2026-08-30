@@ -50,14 +50,28 @@ export function sanitize(messages) {
 
 // Errors arrive differently from the binding and from REST, so read the code
 // from either a property or the message text rather than trusting one shape.
+//
+// The code is not always there. An account whose allocation is spent elsewhere
+// can surface as a bare authentication failure with nothing numeric to match,
+// which is why the text is checked too — reporting that as "inference failed"
+// sends someone hunting a bug in their own request.
+const SOUNDS_EXHAUSTED = /neuron|daily limit|allocation|account limited|quota|exceeded/i;
+const SOUNDS_UNAUTHORISED = /authentication|unauthorized|unauthorised|forbidden|10000/i;
+
 export function classify(error) {
-  const raw = error?.code ?? String(error?.message ?? error).match(/\b(\d{4})\b/)?.[1];
+  const message = String(error?.message ?? error ?? "");
+  const raw = error?.code ?? message.match(/\b(\d{4})\b/)?.[1];
   const code = Number(raw) || 0;
+
   return {
     code,
-    exhausted: code === ACCOUNT_LIMITED,
+    message,
+    exhausted: code === ACCOUNT_LIMITED || SOUNDS_EXHAUSTED.test(message),
     transient: TRANSIENT.has(code),
     misconfigured: MISCONFIGURED.has(code),
+    // Distinct from misconfigured: the binding is right and the credential is
+    // not, which is what an account out of capacity can look like from here.
+    unauthorised: code === 3023 || (code === 0 && SOUNDS_UNAUTHORISED.test(message)),
   };
 }
 

@@ -5,41 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
     <title>bolster.help</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header>
-      <h1>bolster.help</h1>
-      <p id="account">
-        <button id="signin" type="button" class="link">Sign in with GitHub</button>
-        <span id="whoami" hidden></span>
-      </p>
-    </header>
-
-    <main>
-      <!-- No setup step: the page is the chat. Tools and the MCP connection are
-           established in the background, and the composer stays live throughout. -->
-      <div id="budget" hidden>
-        <div id="budget-track"><div id="budget-fill"></div></div>
-        <p id="budget-note"></p>
+    <!-- Conversations live in this browser and nowhere else, so the list is
+         available before anyone signs in rather than being a reward for it. -->
+    <aside id="sidebar" aria-label="Conversations">
+      <div class="sidebar-head">
+        <h1>bolster.help</h1>
+        <button id="new-chat" type="button" class="secondary">New</button>
       </div>
+      <ol id="conversations"></ol>
+      <p id="sidebar-empty" class="muted">Conversations you start are kept in this browser.</p>
+    </aside>
 
-      <ol id="transcript"></ol>
+    <div id="column">
+      <header>
+        <button id="sidebar-toggle" type="button" class="icon" aria-expanded="false" aria-controls="sidebar">
+          <span class="visually-hidden">Conversations</span>
+          <span aria-hidden="true">☰</span>
+        </button>
+        <h2 id="chat-title">New conversation</h2>
+        <p id="account">
+          <button id="signin" type="button" class="link">Sign in with GitHub</button>
+          <span id="whoami" hidden></span>
+        </p>
+      </header>
 
-      <form id="composer">
-        <label class="visually-hidden" for="prompt">Message</label>
-        <input id="prompt" type="text" autocomplete="off" placeholder="Ask me something…" autofocus />
-        <button type="submit">Send</button>
-        <button id="clear" type="button" class="secondary" hidden>Clear</button>
+      <main>
+        <!-- No setup step: the page is the chat. Tools and the MCP connection are
+             established in the background, and the composer stays live throughout. -->
+        <div id="budget" hidden>
+          <div id="budget-track"><div id="budget-fill"></div></div>
+          <p id="budget-note"></p>
+        </div>
+
+        <ol id="transcript"></ol>
+
+        <form id="composer">
+          <label class="visually-hidden" for="prompt">Message</label>
+          <input id="prompt" type="text" autocomplete="off" placeholder="Ask me something…" autofocus />
+          <button type="submit">Send</button>
+          <button id="clear" type="button" class="secondary" hidden>Clear</button>
+        </form>
+
+        <p id="progress" role="status"></p>
+
+        <p id="chat-actions">
+          <button id="save-chat" type="button" class="secondary" hidden>Save conversation</button>
+          <span id="save-state"></span>
+        </p>
+      </main>
+    </div>
+
+    <dialog id="export-dialog">
+      <form method="dialog">
+        <h3>Export conversation</h3>
+
+        <fieldset>
+          <legend>Format</legend>
+          <label><input type="radio" name="format" value="markdown" checked /> Markdown</label>
+          <label><input type="radio" name="format" value="json" /> JSON</label>
+        </fieldset>
+
+        <label id="include-calls-row">
+          <input type="checkbox" id="include-calls" />
+          Include tool calls and their output
+          <span class="muted">Usually much longer than the conversation itself.</span>
+        </label>
+
+        <div class="dialog-actions">
+          <button value="cancel" class="secondary">Cancel</button>
+          <button value="export" id="do-export">Export</button>
+        </div>
       </form>
-
-      <p id="progress" role="status"></p>
-
-      <p id="chat-actions">
-        <button id="save-chat" type="button" class="secondary" hidden>Save conversation</button>
-        <span id="save-state"></span>
-      </p>
-    </main>
+    </dialog>
 
     <script type="module" src="./src/app.js"></script>
   </body>

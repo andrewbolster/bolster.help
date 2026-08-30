@@ -43,7 +43,6 @@ describe("agent loop", () => {
     const engine = scriptedEngine([{ content: "No data needed.", tool_calls: [] }]);
     const out = await agentWith(engine, ok)([], "hello");
     assert.equal(out.content, "No data needed.");
-    assert.equal(out.rounds, 1);
   });
 
   it("calls a tool, then answers from the result", async () => {
@@ -131,11 +130,23 @@ describe("agent loop", () => {
     assert.equal(out.content, "That lookup failed.");
   });
 
-  it("caps a model that never stops calling tools", async () => {
-    const engine = scriptedEngine(Array.from({ length: 20 }, () => call("bolster_dva", "{}")));
+  // The cap is a stop, not a budget: a model working through a dozen tools is
+  // fine, a model that never stops is not. Without a reachable bound the loop
+  // runs forever and spends the day's allocation on one question.
+  it("stops a model that never stops calling tools", async () => {
+    const engine = scriptedEngine(Array.from({ length: 200 }, () => call("bolster_dva", "{}")));
     const out = await agentWith(engine, ok)([], "mot tests");
-    assert.equal(out.rounds, 5, "should stop at MAX_ROUNDS");
-    assert.match(out.content, /could not settle/i);
+    assert.equal(engine.seen.length, 32, "should stop at MAX_ROUNDS");
+    assert.match(out.content, /tried a lot of angles/i);
+  });
+
+  it("lets a model work through many tools before answering", async () => {
+    const engine = scriptedEngine([
+      ...Array.from({ length: 12 }, () => call("bolster_dva", "{}")),
+      { content: "Here you go.", tool_calls: [] },
+    ]);
+    const out = await agentWith(engine, ok)([], "mot tests");
+    assert.equal(out.content, "Here you go.", "twelve rounds is not excessive");
   });
 
   it("sends the whole catalogue, abridged, plus a way to read the rest", async () => {

@@ -6,7 +6,10 @@ import { createStore, isStoreTool } from "./store.js";
 
 export { SYSTEM_PROMPT };
 
-const MAX_ROUNDS = 32;
+// Not a budget — a stop. A model that wants to work through a dozen tools
+// should be left to, so this sits far above what any answer needs and exists
+// only so a model that never stops calling tools eventually does.
+export const MAX_ROUNDS = 32;
 
 // Small models sometimes emit the argument object double-encoded — a JSON
 // string whose contents are themselves JSON — so parsing once yields a string
@@ -68,7 +71,7 @@ export function createAgent({ tools, engine, mcp, store }) {
       const calls = choice.tool_calls ?? [];
       if (calls.length === 0) {
         onEvent({ type: "answer", content: choice.content ?? "" });
-        return { messages, content: choice.content ?? "", rounds: round + 1 };
+        return { messages, content: choice.content ?? "" };
       }
 
       for (const call of calls) {
@@ -93,8 +96,10 @@ export function createAgent({ tools, engine, mcp, store }) {
       }
     }
 
-    const exhausted = "I could not settle on an answer for that one.";
+    // Only reached by a model that called a tool on all 32 rounds.
+    const exhausted =
+      "I've tried a lot of angles on that and not landed it. Want to narrow it down, or point me at something specific?";
     onEvent({ type: "answer", content: exhausted });
-    return { messages, content: exhausted, rounds: MAX_ROUNDS };
+    return { messages, content: exhausted };
   }
 }

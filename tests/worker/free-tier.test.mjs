@@ -16,6 +16,7 @@ import { checkShape, llm, resolveTier, usage } from "../../worker/src/llm.js";
 import { classify, sanitize, FREE_TIER_MODEL, MAX_OUTPUT_TOKENS } from "../../worker/src/workers-ai.js";
 import { DAILY_NEURONS, resetsAt, utcDay } from "../../worker/src/budget.js";
 import { aiError, chatBody, fakeAI, fakeEnv, post } from "../helpers.mjs";
+import { MAX_ROUNDS } from "../../web/src/agent.js";
 
 const andrew = { github_id: 1, login: "andrewbolster" };
 
@@ -126,15 +127,29 @@ describe("request bounds", () => {
     expect(checkShape({ messages: [] })).toMatch(/non-empty array/);
   });
 
-  it("rejects far more turns than a conversation needs", () => {
-    const messages = Array.from({ length: 40 }, () => ({ role: "user", content: "x" }));
-    expect(checkShape({ messages })).toMatch(/too many messages/);
+  // The regression this file exists to prevent. A tool-calling turn appends an
+  // assistant message and a result message per round, so a loop allowed 32
+  // rounds sends upwards of 65 messages. A count-based cap here would cut that
+  // off partway through and surface as the model mysteriously giving up.
+  it("accepts as many messages as a full tool-calling loop produces", () => {
+    const messages = [{ role: "system", content: "s" }, { role: "user", content: "q" }];
+    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      messages.push({ role: "assistant", content: "" }, { role: "tool", content: "result" });
+    }
+    expect(messages.length).toBeGreaterThan(60);
+    expect(checkShape({ messages })).toBeNull();
   });
 
-  it("rejects a conversation over the character budget", () => {
+  it("rejects a conversation past the model's context window", () => {
     const body = chatBody();
-    body.messages.push({ role: "user", content: "x".repeat(25_000) });
+    body.messages.push({ role: "user", content: "x".repeat(400_001) });
     expect(checkShape(body)).toMatch(/too long/);
+  });
+
+  it("accepts a long conversation that still fits the context window", () => {
+    const body = chatBody();
+    body.messages.push({ role: "user", content: "x".repeat(100_000) });
+    expect(checkShape(body)).toBeNull();
   });
 });
 
@@ -205,6 +220,73 @@ describe("Workers AI error handling", () => {
     expect(classify(new Error("3036: AiError: used up your daily free allocation")).exhausted).toBe(true);
     expect(classify(aiError(3040)).transient).toBe(true);
     expect(classify(new Error("something else")).code).toBe(0);
+  });
+
+  // The case that actually turned up: the account's allocation was spent by
+  // something other than this Worker, so our own counter still read healthy and
+  // Cloudflare refused with no numeric code to go on. Only the text said why.
+  it("recognises exhaustion from the message when there is no code", () => {
+    for (const message of [
+      "You have used up your daily free allocation of neurons",
+      "Account limited",
+      "quota exceeded for this account",
+    ]) {
+      expect(classify(new Error(message)).exhausted, message).toBe(true);
+    }
+  });
+
+  it("recognises an authentication failure from the message", () => {
+    const kind = classify(new Error("Authentication error (10000)"));
+    expect(kind.unauthorised).toBe(true);
+    expect(kind.exhausted).toBe(false);
+  });
+
+  it("does not read exhaustion into an unrelated failure", () => {
+    const kind = classify(new Error("upstream connection reset"));
+    expect(kind.exhausted).toBe(false);
+    expect(kind.unauthorised).toBe(false);
+    expect(kind.transient).toBe(false);
+    expect(kind.misconfigured).toBe(false);
+  });
+});
+
+// Every failure carries a machine-readable reason, because "inference failed"
+// on its own tells the visitor nothing about whether waiting, retrying or
+// giving up is the right response.
+describe("failures say why", () => {
+  const reasonFor = async (thrown) => {
+    const { env: environment } = withBudget({ AI: fakeAI({ throws: thrown }) });
+    return (await (await call(environment, null)).json()).reason;
+  };
+
+  it("names a busy model as retryable", async () => {
+    expect(await reasonFor(aiError(3040))).toBe("busy");
+  });
+
+  it("names a deploy mistake as ours", async () => {
+    expect(await reasonFor(aiError(5035))).toBe("misconfigured");
+  });
+
+  it("names an unrecognised failure rather than leaving it blank", async () => {
+    expect(await reasonFor(new Error("upstream connection reset"))).toBe("unknown");
+  });
+
+  it("reports an authentication failure as temporary and at our end", async () => {
+    const { env: environment } = withBudget({ AI: fakeAI({ throws: new Error("Authentication error (10000)") }) });
+    const response = await call(environment, null);
+
+    expect(response.status).toBe(503);
+    expect((await response.json()).reason).toBe("unauthorised");
+  });
+
+  it("distinguishes a conversation that outgrew the context window", async () => {
+    const { env: environment } = withBudget({ AI: fakeAI({ neurons: 1 }) });
+    const body = chatBody();
+    body.messages.push({ role: "user", content: "x".repeat(400_001) });
+
+    const response = await call(environment, null, body);
+    expect(response.status).toBe(400);
+    expect((await response.json()).reason).toBe("too_long");
   });
 });
 
