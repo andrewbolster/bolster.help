@@ -1,6 +1,7 @@
 // The tool-calling loop.
 
 import { SYSTEM_PROMPT } from "./persona.js";
+import { DOCUMENTATION_TOOL, isDocumentationTool, lookupDocumentation, toToolSchemas } from "./catalogue.js";
 import { createStore, isStoreTool } from "./store.js";
 
 export { SYSTEM_PROMPT };
@@ -28,15 +29,9 @@ function parseArguments(raw) {
 }
 
 export function createAgent({ tools, engine, mcp, store }) {
-  // Every tool, every turn, with the description the MCP server gave it.
-  const catalogue = tools.map((tool) => ({
-    type: "function",
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.inputSchema ?? { type: "object", properties: {} },
-    },
-  }));
+  // Every tool, every turn, described by its prose rather than its full
+  // docstring. full_tool_documentation fetches the rest when it is wanted.
+  const catalogue = [...toToolSchemas(tools), DOCUMENTATION_TOOL];
 
   // The store is built once and outlives a turn: a follow-up question can read
   // a table fetched for the previous one, which is cheaper and more accurate
@@ -79,7 +74,11 @@ export function createAgent({ tools, engine, mcp, store }) {
         try {
           // Reading stored output is local: it never leaves the browser and
           // never reaches the proxy.
-          content = isStoreTool(name) ? active.call(name, args) : active.put(name, await mcp.callTool(name, args));
+          content = isDocumentationTool(name)
+            ? lookupDocumentation(tools, args.tool)
+            : isStoreTool(name)
+              ? active.call(name, args)
+              : active.put(name, await mcp.callTool(name, args));
         } catch (err) {
           content = `Tool failed: ${err.message}`;
         }

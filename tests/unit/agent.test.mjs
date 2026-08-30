@@ -138,18 +138,36 @@ describe("agent loop", () => {
     assert.match(out.content, /could not settle/i);
   });
 
-  it("sends the whole catalogue, with the descriptions the server gave", async () => {
+  it("sends the whole catalogue, abridged, plus a way to read the rest", async () => {
     const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
     await agentWith(engine, ok)([], "how many births were registered last year?");
 
-    const storeTools = new Set(["read_output", "search_output", "aggregate_output", "calculate", "write_output", "display_output"]);
-    const sent = engine.seen[0].filter((tool) => !storeTools.has(tool.function.name));
-    assert.equal(sent.length, snapshot.tools.length, "every tool should be offered");
+    const ours = new Set([
+      "read_output", "search_output", "aggregate_output",
+      "calculate", "write_output", "display_output", "full_tool_documentation",
+    ]);
+    const sent = engine.seen[0];
+    const fromCatalogue = sent.filter((tool) => !ours.has(tool.function.name));
+    assert.equal(fromCatalogue.length, snapshot.tools.length, "every tool should be offered");
+    assert.ok(sent.some((tool) => tool.function.name === "full_tool_documentation"));
 
-    // Descriptions pass through untouched. Trimming them to a first paragraph
-    // was the same kind of context-saving that hid what the model could do.
-    const births = sent.find((tool) => tool.function.name === "bolster_nisra_births");
-    assert.equal(births.function.description, snapshot.tools.find((t) => t.name === "bolster_nisra_births").description);
+    // Abridged to the prose, but not to a single line — and the unabridged
+    // version stays reachable rather than being lost.
+    const births = fromCatalogue.find((tool) => tool.function.name === "bolster_nisra_births");
+    const full = snapshot.tools.find((t) => t.name === "bolster_nisra_births").description;
+    assert.ok(births.function.description.length < full.length, "should be abridged");
+    assert.match(births.function.description, /Breakdown by sex/, "should keep the substance");
+  });
+
+  it("answers full_tool_documentation without calling the MCP server", async () => {
+    const engine = scriptedEngine([
+      call("full_tool_documentation", JSON.stringify({ tool: "bolster_nisra_births" })),
+      { content: "read it", tool_calls: [] },
+    ]);
+    let reached = false;
+    const out = await agentWith(engine, { callTool: async () => { reached = true; return "x"; } })([], "what does births take?");
+    assert.equal(reached, false, "documentation is local; it must not hit the proxy");
+    assert.match(out.messages.find((m) => m.role === "tool").content, /Examples:/);
   });
 
   it("prepends the system prompt and replays history", async () => {
