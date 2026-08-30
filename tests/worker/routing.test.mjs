@@ -9,7 +9,7 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
 import worker from "../../worker/src/index.js";
-import { fakeEnv, post, rateLimit, request, withSession } from "../helpers.mjs";
+import { fakeEnv, post, request, withSession } from "../helpers.mjs";
 
 const rpc = (method, params) => ({ jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) });
 const callTool = (name) => rpc("tools/call", { name, arguments: {} });
@@ -120,25 +120,6 @@ describe("proxy guardrails", () => {
       assert.equal(error.code, -32601, `${name} must stay unreachable`);
       assert.match(error.message, new RegExp(name));
     }
-  });
-});
-
-describe("rate limiting", () => {
-  it("returns 429 with retry-after when the binding refuses", async () => {
-    const response = await worker.fetch(
-      post("/mcp-proxy", rpc("tools/list")),
-      fakeEnv({ MCP_RATE_LIMIT: rateLimit(false) }),
-    );
-    assert.equal(response.status, 429);
-    assert.equal(response.headers.get("retry-after"), "60");
-    assert.equal((await response.json()).error, "rate limited");
-  });
-
-  it("is skipped entirely when no binding is configured", async () => {
-    // No MCP_RATE_LIMIT in env: the request must reach the allowlist check
-    // rather than fail closed, or local development breaks.
-    const error = (await (await proxy(callTool("rm_minus_rf"))).json()).error;
-    assert.equal(error.code, -32601);
   });
 });
 

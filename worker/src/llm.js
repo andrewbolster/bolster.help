@@ -12,19 +12,37 @@
 // most expensive one available.
 
 import { budgetOf } from "./budget.js";
-import { classify, freeTierEnabled, runFreeTier } from "./workers-ai.js";
+import { MAX_OUTPUT_TOKENS, classify, freeTierEnabled, runFreeTier } from "./workers-ai.js";
 
-const MAX_BODY_BYTES = 256 * 1024;
+// Reject before parsing: a Worker has a few milliseconds of CPU, and
+// JSON.parse on a body someone chose is the cheapest way to spend all of it.
+// Sized above a full context window so the model's limit binds first, not ours.
+const MAX_BODY_BYTES = 1024 * 1024;
 
 // Resource bounds, not a content filter. Matching the request against the app's
 // own system prompt was considered and dropped: that prompt ships in the public
 // bundle, so the check is bypassed by reading it, while coupling the Worker to a
 // client-side string that would take the free tier down if it ever drifted.
-// What actually bounds the damage is the daily allocation Cloudflare enforces,
-// the per-IP rate limit, and the size caps here.
-const MAX_MESSAGES = 24;
-const MAX_CONTENT_CHARS = 24_000;
-const MAX_SHARED_OUTPUT_TOKENS = 800;
+// What actually bounds the damage is the daily allocation Cloudflare enforces.
+//
+// There is deliberately no cap on message *count*. A message is not a unit of
+// cost — a tool-calling turn produces one assistant message and one result
+// message per call, so an agent working through a problem legitimately sends
+// dozens. The earlier limit of 24 silently capped the loop at eleven rounds no
+// matter what the client asked for, which is the sort of constraint that looks
+// like a model failure from the outside.
+//
+// Characters are the thing that costs, and the number that matters is granite's
+// context window: 131K tokens, so roughly 520K characters. Cut below that to
+// leave the reply somewhere to go, and reject here rather than let Workers AI
+// fail with a code we would report as "inference failed".
+const MAX_CONTENT_CHARS = 400_000;
+
+// The one genuinely arbitrary number in this file, and it stays arbitrary
+// because it is the only thing standing between a long answer and someone's
+// actual credit card. Matched to the free tier so an allowlisted account does
+// not get shorter answers than a visitor.
+const MAX_SHARED_OUTPUT_TOKENS = MAX_OUTPUT_TOKENS;
 
 const json = (body, status, headers) =>
   new Response(JSON.stringify(body), {
@@ -61,7 +79,6 @@ export function resolveTier(env, user) {
 export function checkShape(body) {
   const { messages } = body;
   if (!Array.isArray(messages) || messages.length === 0) return "messages must be a non-empty array";
-  if (messages.length > MAX_MESSAGES) return "too many messages";
 
   let chars = 0;
   for (const message of messages) {
@@ -118,14 +135,30 @@ async function serveFreeTier(env, body, headers) {
       return json({ error: "free tier exhausted", usage }, 429, headers);
     }
     if (kind.transient) {
-      return json({ error: "model busy, try again", retry: true }, 503, headers);
+      return json({ error: "model busy, try again", retry: true, reason: "busy" }, 503, headers);
     }
     // A pinned model that the plan cannot reach is a deploy mistake, not
     // something the visitor did or can fix.
     if (kind.misconfigured) {
-      return json({ error: "free tier misconfigured" }, 500, headers);
+      return json({ error: "free tier misconfigured", reason: "misconfigured", code: kind.code }, 500, headers);
     }
-    return json({ error: "inference failed" }, 502, headers);
+    if (kind.unauthorised) {
+      // The most likely cause is the account's allocation being spent by
+      // something other than this Worker, which our own counter cannot see —
+      // this is the shape a sibling project draining the shared daily
+      // allocation actually takes. Latching here is what makes /usage tell
+      // the truth for the rest of the day instead of reporting the healthy
+      // number our own tally last saw, right up until someone happens to
+      // trigger this same failure again.
+      const usage = await budget.exhaust();
+      return json({ error: "inference is not available right now", reason: "unauthorised", code: kind.code, usage }, 503, headers);
+    }
+
+    // Nothing recognised it. The message is the only lead, so log it — the
+    // visitor gets a class rather than a shrug, and `wrangler tail` gets the
+    // detail. Errors here come from Cloudflare, not from the request.
+    console.error("Workers AI failed:", kind.code, kind.message);
+    return json({ error: "inference failed", reason: "unknown", code: kind.code }, 502, headers);
   }
 
   const usage = await budget.spend(outcome.neurons);
@@ -136,7 +169,7 @@ export async function llm(request, env, headers, user) {
   if (request.method !== "POST") return json({ error: "method not allowed" }, 405, headers);
 
   // Cheapest check first: an unauthorised caller must not be able to make the
-  // Worker buffer 256KB before being turned away.
+  // Worker buffer a megabyte before being turned away.
   const tier = resolveTier(env, user);
   if (!tier) return json({ error: "not permitted" }, 403, headers);
 
@@ -151,7 +184,10 @@ export async function llm(request, env, headers, user) {
   }
 
   const wrong = checkShape(body);
-  if (wrong) return json({ error: wrong }, 400, headers);
+  // A conversation that outgrew the context window is a real thing that happens
+  // to a working chat, and the page can say so plainly rather than reporting it
+  // as another unexplained failure.
+  if (wrong) return json({ error: wrong, reason: wrong === "conversation too long" ? "too_long" : "bad_request" }, 400, headers);
 
   return tier === "shared"
     ? relayToProvider(env, body, headers)

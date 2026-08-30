@@ -29,7 +29,11 @@
 // actively counterproductive.
 const INLINE_LIMIT = 1200;
 const PREVIEW_LINES = 8;
-const MAX_OBJECTS = 8;
+// Handles are strings in a browser tab, and a tab has gigabytes. Eight was
+// sized against a five-round loop; a model working through thirty rounds
+// fetches more than eight datasets and would find its earliest handle silently
+// evicted just as it went to compare it against the latest.
+const MAX_OBJECTS = 64;
 const MAX_MATCHES = 40;
 const MAX_WINDOW = 200;
 

@@ -134,16 +134,6 @@ export default {
 
     if (pathname === "/llm") {
       const user = await session(request, env);
-      // Signed-in callers are exempt: they are identifiable, and the fairness
-      // problem this guards against is anonymous traffic draining a shared
-      // allowance that resets only at midnight UTC.
-      if (env.LLM_RATE_LIMIT && !user) {
-        const ip = request.headers.get("cf-connecting-ip") ?? "anonymous";
-        const { success } = await env.LLM_RATE_LIMIT.limit({ key: ip });
-        if (!success) {
-          return json({ error: "rate limited" }, 429, { ...headers, "retry-after": "60" });
-        }
-      }
       return llm(request, env, headers, user);
     }
 
@@ -163,14 +153,6 @@ export default {
 
     if (pathname !== "/mcp-proxy") return new Response("not found", { status: 404, headers });
     if (request.method !== "POST") return new Response("method not allowed", { status: 405, headers });
-
-    if (env.MCP_RATE_LIMIT) {
-      const ip = request.headers.get("cf-connecting-ip") ?? "anonymous";
-      const { success } = await env.MCP_RATE_LIMIT.limit({ key: ip });
-      if (!success) {
-        return json({ error: "rate limited" }, 429, { ...headers, "retry-after": "60" });
-      }
-    }
 
     return proxy(request, env, headers);
   },

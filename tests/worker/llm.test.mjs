@@ -93,8 +93,8 @@ describe("/llm", () => {
     assert.equal(response.status, 403);
   });
 
-  it("refuses a body over the 256KB cap", async () => {
-    const response = await call(configured(), andrew, "x".repeat(257 * 1024));
+  it("refuses a body over the 1MB cap", async () => {
+    const response = await call(configured(), andrew, "x".repeat(1025 * 1024));
     assert.equal(response.status, 413);
     assert.equal(await errorFrom(response), "request too large");
   });

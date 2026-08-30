@@ -43,6 +43,41 @@ stops issuing requests that cannot succeed until 00:00 UTC. `3040` shares the
 same HTTP status but means *out of capacity* and is retried instead — branching
 on the status alone would get one of the two wrong.
 
+## Conversations
+
+Conversations are kept in `localStorage` and go nowhere else. That is what an
+unauthenticated visitor gets by default, and it means the sidebar works before
+anyone signs in rather than being a reward for it. They can be renamed, deleted
+and exported as Markdown or JSON, with the tool calls and their output either
+included or left out — the same fold the transcript uses, because a transcript
+to send someone and a transcript to debug an answer want different things.
+
+A conversation is titled by its opening question from the first turn. After
+three turns the model is asked for a summary of at most 30 characters, and if it
+obliges, that replaces it. A title someone typed is never replaced by either.
+The model call is best-effort: no capacity, a refusal, or a reply that is
+plainly not a title all leave the opening question in place, and nothing
+surfaces to the visitor, because nothing they care about has failed.
+
+## Limits, and which of them are real
+
+Numbers that bound a request are easy to add and hard to notice once they are
+wrong, so the ones that remain each say what they protect:
+
+| Limit | What it is for |
+| --- | --- |
+| `MAX_BODY_BYTES` (1MB) | Rejects before `JSON.parse`, which is the cheapest way to spend a Worker's CPU budget. Sized above a full context window so the model's limit binds first. |
+| `MAX_CONTENT_CHARS` (400K) | Granite's context is 131K tokens. Rejecting here means the page can say "this conversation got too long" instead of reporting it as an unexplained failure. |
+| `MAX_SHARED_OUTPUT_TOKENS` | Arbitrary, and stays arbitrary: it is the only thing between a long answer and a real credit card. Matched to the free tier so an allowlisted account is not given shorter answers than a visitor. |
+| `MAX_ROUNDS` (32) | Not a budget — a stop. A model that wants to work through a dozen tools should be left to. |
+| `MAX_OBJECTS` (64) | How many tool outputs the store keeps. Handles are strings in a browser tab. |
+
+There is deliberately no cap on message *count*. A message is not a unit of
+cost: a tool-calling turn produces one assistant message and one result message
+per call, so an agent working through a problem legitimately sends dozens. An
+earlier cap of 24 silently held the loop to eleven rounds regardless of
+`MAX_ROUNDS`, which from the browser looked like the model giving up.
+
 ## Layout
 
 ```
@@ -54,9 +89,17 @@ scripts/   maintenance and verification scripts
 ## Why the proxy is mandatory
 
 `mcp.bolster.online` sends no CORS headers — `OPTIONS /mcp` answers 405 — so a
-browser cannot reach it directly. The Worker is also where the tool allowlist and
-rate limiting live; the origin itself stays open and unauthenticated, so anything
-bypassing the proxy reaches it unfiltered.
+browser cannot reach it directly. The Worker is also where the tool allowlist
+lives; the origin itself stays open and unauthenticated, so anything bypassing
+the proxy reaches it unfiltered.
+
+A Cloudflare Rate Limiting binding sat here once, on both `/mcp-proxy` and
+`/llm`. It was removed after testing the deployed Worker directly showed it
+never refused a request — bursts well past its configured threshold all came
+back 200. A guardrail that fails open and silent is worse than none: it reads
+as protection in the code without providing any, and it was more misleading
+to leave wired up than to cut. The MCP origin is responsible for its own rate
+limiting; nothing in this repo currently limits by IP.
 
 ## Every tool is sent every turn
 
@@ -81,12 +124,15 @@ npm run test:network      # adds the checks that reach mcp.bolster.online
 npm run refresh-tools     # re-snapshot tools/list into web/src/tools.json
 ```
 
-Vitest, in two projects. `unit` is plain Node — the agent loop, the output
-store, catalogue integrity. `worker` runs inside workerd through Cloudflare's
-own plugin, so KV and the `NeuronBudget` Durable Object are real rather than
-stood in for. That matters most for the budget: it exists because KV cannot
-hold a counter safely, and a hand-written fake would assert the consistency we
-wanted instead of the one workerd gives us.
+Vitest, in three projects. `unit` is plain Node — the agent loop, the output
+store, conversation storage, catalogue integrity. `dom` runs the page against
+happy-dom, because the sidebar is DOM code and testing the store underneath it
+proves nothing about whether clicking Delete deletes the right row. `worker`
+runs inside workerd through Cloudflare's own plugin, so KV and the
+`NeuronBudget` Durable Object are real rather than stood in for. That matters
+most for the budget: it exists because KV cannot hold a counter safely, and a
+hand-written fake would assert the consistency we wanted instead of the one
+workerd gives us.
 
 `worker/wrangler.test.toml` is the production config minus the bindings with no
 local simulator. Workers AI is the reason it exists at all: a config declaring
@@ -104,7 +150,7 @@ with the reason attached rather than faked:
 | Gate | Unlocks |
 | --- | --- |
 | `CHECK_NETWORK=1` | the origin sends no CORS headers; `tools.json` matches upstream |
-| `CHECK_DEPLOYED=<url>` | rate limiting actually enforcing; same-origin cookies |
+| `CHECK_DEPLOYED=<url>` | same-origin cookies |
 | `LLM_BASE_URL` + `LLM_API_KEY` | a real completion through the shared key |
 
 A skipped test reports why, so a green run says which assumptions went
@@ -130,10 +176,9 @@ for that reason; drift there is silent at runtime.
 cd worker && npx wrangler dev --port 8788 --local
 ```
 
-The rate-limit binding is inert under `--local`; exercise it against a deployed
-preview instead. Session cookies will not flow between the static server on 5173
-and wrangler on 8788 under `SameSite=Lax`, so auth is only testable once both
-sit behind one origin — which they do in production.
+Session cookies will not flow between the static server on 5173 and wrangler on
+8788 under `SameSite=Lax`, so auth is only testable once both sit behind one
+origin — which they do in production.
 
 ## Setup that needs account access
 

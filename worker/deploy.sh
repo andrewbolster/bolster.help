@@ -51,8 +51,6 @@ metadata=$(cat <<JSON
     { "type": "durable_object_namespace", "name": "NEURON_BUDGET", "class_name": "NeuronBudget" },
     { "type": "kv_namespace", "name": "SESSIONS", "namespace_id": "$KV_ID" },
     { "type": "d1", "name": "DB", "id": "$D1_ID" },
-    { "type": "ratelimit", "name": "MCP_RATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
-    { "type": "ratelimit", "name": "LLM_RATE_LIMIT", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },
     { "type": "plain_text", "name": "MCP_ORIGIN", "text": "https://mcp.bolster.online/mcp" },
     { "type": "plain_text", "name": "ALLOWED_ORIGINS", "text": "$ALLOWED_ORIGINS" },
     { "type": "plain_text", "name": "GITHUB_ALLOWED_LOGINS", "text": "andrewbolster" },

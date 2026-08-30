@@ -37,24 +37,6 @@ class_name = "NeuronBudget"
 tag = "v1"
 new_sqlite_classes = ["NeuronBudget"]
 
-# Cloudflare's rate-limiting binding rather than a KV counter: the free tier
-# allows 1K KV writes/day, which a per-request counter would exhaust in minutes.
-[[unsafe.bindings]]
-name = "MCP_RATE_LIMIT"
-type = "ratelimit"
-namespace_id = "1001"
-simple = { limit = 30, period = 60 }
-
-# Tighter than the MCP proxy, and for a different reason. The risk on the free
-# tier is not cost — Cloudflare caps that — but fairness: without this, one
-# script can spend the whole day's allocation in minutes and every other visitor
-# gets a 429 until midnight UTC.
-[[unsafe.bindings]]
-name = "LLM_RATE_LIMIT"
-type = "ratelimit"
-namespace_id = "1002"
-simple = { limit = 10, period = 60 }
-
 # Sessions only — one write per login, so the 1K/day write cap is not a concern.
 # Replace the id after `wrangler kv namespace create SESSIONS`.
 [[kv_namespaces]]
