@@ -4,7 +4,7 @@ compatibility_date = "2026-05-01"
 
 [vars]
 MCP_ORIGIN = "https://mcp.bolster.online/mcp"
-ALLOWED_ORIGINS = "https://bolster.help,http://localhost:5173"
+ALLOWED_ORIGINS = "https://bolster.help,https://www.bolster.help,http://localhost:5173"
 
 # Who may spend the deployment's own LLM credentials. Empty means nobody, which
 # is the right default: every other visitor brings their own key.

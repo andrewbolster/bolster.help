@@ -232,3 +232,79 @@ td {
   background: var(--surface);
   border-left-color: var(--accent);
 }
+
+/* Markdown in an assistant turn. Kept close to the surrounding text: the
+   model reaches for headings more readily than a person would, so h3-h6 are
+   only slightly larger than body copy. */
+#transcript p { margin: 0 0 0.6rem; }
+#transcript li > :last-child { margin-bottom: 0; }
+#transcript h3, #transcript h4, #transcript h5, #transcript h6 {
+  margin: 0.9rem 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+#transcript ul, #transcript ol { margin: 0 0 0.6rem; padding-left: 1.3rem; }
+#transcript li li { margin-bottom: 0.15rem; }
+#transcript code {
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875em;
+}
+#transcript pre {
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  background: var(--surface);
+  overflow-x: auto;
+}
+#transcript pre code { padding: 0; background: none; }
+#transcript blockquote {
+  margin: 0 0 0.6rem;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+}
+#transcript table { margin-bottom: 0.6rem; display: block; overflow-x: auto; }
+#transcript hr { margin: 1rem 0; border: 0; border-top: 1px solid var(--line); }
+
+/* What was asked and what came back. Two levels, both shut: the call is worth
+   glancing at, the raw output only when something looks wrong. */
+.calls {
+  margin-top: 0.6rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.calls > summary,
+.call > summary,
+.call-output > summary {
+  cursor: pointer;
+  padding: 0.15rem 0;
+}
+
+.calls > summary:hover,
+.call > summary:hover,
+.call-output > summary:hover {
+  color: var(--ink);
+}
+
+.call {
+  margin: 0.25rem 0 0.25rem 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+}
+
+.call-output { margin-left: 1rem; }
+
+.call-output pre {
+  max-height: 22rem;
+  margin: 0.3rem 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+}

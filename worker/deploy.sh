@@ -29,9 +29,11 @@ SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/src" && pwd)"
 KV_ID=7683a8d90ea6451bace7e2458cd8fe17
 D1_ID=81abb174-fba4-4181-9e6f-adef56df939f
 
-# Kept in step with wrangler.toml by hand. tests/unit/config.test.mjs asserts
-# the two agree on the model and the Durable Object class.
-: "${ALLOWED_ORIGINS:=https://bolster.help,https://www.bolster.help,https://andrewbolster.info,https://andrewbolster.github.io,https://bolster-help-5le.pages.dev,http://localhost:5173}"
+# Kept in step with wrangler.toml by hand.
+#
+# andrewbolster.info and the pages.dev preview were allowed while the site was
+# served from a project path during the domain move. They are not now.
+: "${ALLOWED_ORIGINS:=https://bolster.help,https://www.bolster.help,http://localhost:5173}"
 
 if [ "${MIGRATE:-0}" = "1" ]; then
   migrations='"migrations": { "new_sqlite_classes": ["NeuronBudget"] },'
