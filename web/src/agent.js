@@ -1,12 +1,11 @@
 // The tool-calling loop.
 
-import { buildIndex, search, toOpenAITools } from "./retrieval.js";
 import { SYSTEM_PROMPT } from "./persona.js";
+import { createStore, isStoreTool } from "./store.js";
 
 export { SYSTEM_PROMPT };
 
 const MAX_ROUNDS = 5;
-const CANDIDATES = 6;
 
 // Small models sometimes emit the argument object double-encoded — a JSON
 // string whose contents are themselves JSON — so parsing once yields a string
@@ -28,12 +27,26 @@ function parseArguments(raw) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-export function createAgent({ tools, engine, mcp }) {
-  const index = buildIndex(tools);
+export function createAgent({ tools, engine, mcp, store }) {
+  // Every tool, every turn, with the description the MCP server gave it.
+  const catalogue = tools.map((tool) => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema ?? { type: "object", properties: {} },
+    },
+  }));
+
+  // The store is built once and outlives a turn: a follow-up question can read
+  // a table fetched for the previous one, which is cheaper and more accurate
+  // than fetching it again. Displays are routed to whichever turn is running,
+  // since the listener arrives per call rather than per conversation.
+  let emit = () => {};
+  const active = store ?? createStore({ onDisplay: (display) => emit({ type: "display", ...display }) });
 
   return async function run(history, userMessage, { onEvent = () => {} } = {}) {
-    const candidates = search(index, userMessage, CANDIDATES).map((r) => r.tool);
-    onEvent({ type: "retrieved", tools: candidates.map((t) => t.name) });
+    emit = onEvent;
 
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -44,7 +57,7 @@ export function createAgent({ tools, engine, mcp }) {
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       const reply = await engine.chat.completions.create({
         messages,
-        tools: toOpenAITools(candidates),
+        tools: [...catalogue, ...active.tools()],
         tool_choice: "auto",
       });
 
@@ -64,7 +77,9 @@ export function createAgent({ tools, engine, mcp }) {
 
         let content;
         try {
-          content = await mcp.callTool(name, args);
+          // Reading stored output is local: it never leaves the browser and
+          // never reaches the proxy.
+          content = isStoreTool(name) ? active.call(name, args) : active.put(name, await mcp.callTool(name, args));
         } catch (err) {
           content = `Tool failed: ${err.message}`;
         }

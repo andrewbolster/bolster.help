@@ -10,7 +10,6 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
 import { createAgent } from "../../web/src/agent.js";
-import { buildIndex, search, toOpenAITools } from "../../web/src/retrieval.js";
 import { snapshot, fixtures } from "../helpers.mjs";
 
 // A stand-in for the provider: replays queued replies and records the tool
@@ -139,15 +138,18 @@ describe("agent loop", () => {
     assert.match(out.content, /could not settle/i);
   });
 
-  it("sends only the retrieved candidates, never the whole catalogue", async () => {
+  it("sends the whole catalogue, with the descriptions the server gave", async () => {
     const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
     await agentWith(engine, ok)([], "how many births were registered last year?");
-    const sent = engine.seen[0];
-    assert.equal(sent.length, 6, `expected 6 candidate schemas, got ${sent.length}`);
-    assert.ok(
-      sent.some((tool) => tool.function.name === "bolster_nisra_births"),
-      "the expected tool must be among them",
-    );
+
+    const storeTools = new Set(["read_output", "search_output", "aggregate_output", "calculate", "write_output", "display_output"]);
+    const sent = engine.seen[0].filter((tool) => !storeTools.has(tool.function.name));
+    assert.equal(sent.length, snapshot.tools.length, "every tool should be offered");
+
+    // Descriptions pass through untouched. Trimming them to a first paragraph
+    // was the same kind of context-saving that hid what the model could do.
+    const births = sent.find((tool) => tool.function.name === "bolster_nisra_births");
+    assert.equal(births.function.description, snapshot.tools.find((t) => t.name === "bolster_nisra_births").description);
   });
 
   it("prepends the system prompt and replays history", async () => {
@@ -162,31 +164,26 @@ describe("agent loop", () => {
     assert.equal(out.messages[3].content, "follow up");
   });
 
-  it("emits retrieved, tool, result and answer events in order", async () => {
+  it("emits tool, result and answer events in order", async () => {
     const engine = scriptedEngine([
       call("bolster_nisra_births", "{}"),
       { content: "done", tool_calls: [] },
     ]);
     const types = [];
     await agentWith(engine, ok)([], "births", { onEvent: (e) => types.push(e.type) });
-    assert.deepEqual(types, ["retrieved", "tool", "result", "answer"]);
+    assert.deepEqual(types, ["tool", "result", "answer"]);
   });
 });
 
-// The budget that justifies retrieval existing at all. Rough but consistent:
-// enough to compare a top-6 payload against the full catalogue.
-describe("tool payload budget", () => {
-  const tokens = (obj) => Math.ceil(JSON.stringify(obj).length / 4);
-  const index = buildIndex(snapshot.tools);
-  const perFixture = fixtures.map((f) =>
-    tokens(toOpenAITools(search(index, f.prompt, 6).map((r) => r.tool))),
-  );
-  const worst = Math.max(...perFixture);
-  const mean = Math.round(perFixture.reduce((a, b) => a + b, 0) / perFixture.length);
-
-  it("leaves room for a conversation in a small quantised model", () => {
-    console.info(`all ${snapshot.tools.length} tools: ~${tokens(toOpenAITools(snapshot.tools))} tokens`);
-    console.info(`top 6: ~${mean} mean, ~${worst} worst`);
-    assert.ok(worst < 3000, `worst-case payload ${worst} tokens is too large`);
+// What the full catalogue costs, recorded rather than enforced. There is no
+// budget to keep: granite has a 131K context and the whole thing is ~19K.
+describe("catalogue size", () => {
+  it("reports what sending everything costs", () => {
+    const tokens = Math.ceil(JSON.stringify(snapshot.tools.map((t) => ({
+      type: "function",
+      function: { name: t.name, description: t.description, parameters: t.inputSchema },
+    }))).length / 4);
+    console.info(`all ${snapshot.tools.length} tools with full descriptions: ~${tokens} tokens`);
+    assert.ok(tokens < 100_000, `catalogue is ${tokens} tokens, past a 131K context`);
   });
 });

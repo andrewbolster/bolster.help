@@ -2,9 +2,9 @@
 // directly — the origin sends no CORS headers, so a direct call cannot work.
 
 // Tool output is raw CLI text: tables of quarterly NISRA figures run to tens of
-// kilobytes. Feeding that back unabridged would evict the conversation from a
-// 7-8B context window, so results are clipped before they re-enter the loop.
-const MAX_RESULT_CHARS = 2000;
+// kilobytes, which would evict the conversation from a small context window.
+// What to do about that is the store's decision, not this client's — see
+// store.js. The client returns the whole thing and lets the caller choose.
 
 export class McpClient {
   constructor(endpoint) {
@@ -57,9 +57,6 @@ export class McpClient {
       .join("\n")
       .trim();
 
-    if (!text) return "(the tool returned nothing)";
-    return text.length > MAX_RESULT_CHARS
-      ? `${text.slice(0, MAX_RESULT_CHARS)}\n… truncated, ${text.length - MAX_RESULT_CHARS} more characters`
-      : text;
+    return text || "(the tool returned nothing)";
   }
 }

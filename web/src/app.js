@@ -38,6 +38,20 @@ function render(transcript, history) {
       const body = document.createElement("p");
       body.textContent = turn.content;
       li.append(who, body);
+      if (turn.display) {
+        const shown = document.createElement(turn.display.format === "code" ? "pre" : "div");
+        shown.className = `shown ${turn.display.format}`;
+        if (turn.display.caption) {
+          const caption = document.createElement("span");
+          caption.className = "who";
+          caption.textContent = turn.display.caption;
+          li.append(caption);
+        }
+        // textContent, never innerHTML: this is model output, and the tool
+        // deliberately offers no html format for the same reason.
+        shown.textContent = turn.display.content;
+        li.append(shown);
+      }
       if (turn.tools?.length) {
         const used = document.createElement("p");
         used.className = "tools";
@@ -188,6 +202,16 @@ function main() {
           if (e.type === "tool") {
             used.push(e.name);
             pending.content = `Checking ${e.name}…`;
+            render(transcript, history);
+          }
+          if (e.type === "display") {
+            // Shown to the reader without passing through the model's context,
+            // so it lands as its own entry rather than inside the reply.
+            history.splice(history.length - 1, 0, {
+              role: "assistant",
+              content: "",
+              display: { content: e.content, format: e.format, caption: e.caption },
+            });
             render(transcript, history);
           }
         },
