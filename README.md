@@ -89,9 +89,17 @@ scripts/   maintenance and verification scripts
 ## Why the proxy is mandatory
 
 `mcp.bolster.online` sends no CORS headers — `OPTIONS /mcp` answers 405 — so a
-browser cannot reach it directly. The Worker is also where the tool allowlist and
-rate limiting live; the origin itself stays open and unauthenticated, so anything
-bypassing the proxy reaches it unfiltered.
+browser cannot reach it directly. The Worker is also where the tool allowlist
+lives; the origin itself stays open and unauthenticated, so anything bypassing
+the proxy reaches it unfiltered.
+
+A Cloudflare Rate Limiting binding sat here once, on both `/mcp-proxy` and
+`/llm`. It was removed after testing the deployed Worker directly showed it
+never refused a request — bursts well past its configured threshold all came
+back 200. A guardrail that fails open and silent is worse than none: it reads
+as protection in the code without providing any, and it was more misleading
+to leave wired up than to cut. The MCP origin is responsible for its own rate
+limiting; nothing in this repo currently limits by IP.
 
 ## Every tool is sent every turn
 
@@ -142,7 +150,7 @@ with the reason attached rather than faked:
 | Gate | Unlocks |
 | --- | --- |
 | `CHECK_NETWORK=1` | the origin sends no CORS headers; `tools.json` matches upstream |
-| `CHECK_DEPLOYED=<url>` | rate limiting actually enforcing; same-origin cookies |
+| `CHECK_DEPLOYED=<url>` | same-origin cookies |
 | `LLM_BASE_URL` + `LLM_API_KEY` | a real completion through the shared key |
 
 A skipped test reports why, so a green run says which assumptions went
@@ -168,10 +176,9 @@ for that reason; drift there is silent at runtime.
 cd worker && npx wrangler dev --port 8788 --local
 ```
 
-The rate-limit binding is inert under `--local`; exercise it against a deployed
-preview instead. Session cookies will not flow between the static server on 5173
-and wrangler on 8788 under `SameSite=Lax`, so auth is only testable once both
-sit behind one origin — which they do in production.
+Session cookies will not flow between the static server on 5173 and wrangler on
+8788 under `SameSite=Lax`, so auth is only testable once both sit behind one
+origin — which they do in production.
 
 ## Setup that needs account access
 

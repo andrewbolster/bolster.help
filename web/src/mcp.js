@@ -30,7 +30,6 @@ export class McpClient {
     const issued = res.headers.get("mcp-session-id");
     if (issued) this.session = issued;
 
-    if (res.status === 429) throw new Error("Too many requests — give it a minute.");
     if (res.status === 204) return null;
     if (!res.ok) throw new Error(`proxy returned HTTP ${res.status}`);
 

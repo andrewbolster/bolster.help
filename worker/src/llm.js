@@ -23,8 +23,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 // own system prompt was considered and dropped: that prompt ships in the public
 // bundle, so the check is bypassed by reading it, while coupling the Worker to a
 // client-side string that would take the free tier down if it ever drifted.
-// What actually bounds the damage is the daily allocation Cloudflare enforces
-// and the per-IP rate limit.
+// What actually bounds the damage is the daily allocation Cloudflare enforces.
 //
 // There is deliberately no cap on message *count*. A message is not a unit of
 // cost — a tool-calling turn produces one assistant message and one result

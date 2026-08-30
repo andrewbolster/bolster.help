@@ -153,13 +153,11 @@ const FAILURES = {
   unauthorised: "Inference isn't available at the moment. This is at my end, not yours; it should come back on its own.",
   busy: "The model is busy. Worth trying that again in a moment.",
   misconfigured: "Something is misconfigured at my end — this one needs Andrew rather than another attempt.",
-  rate_limited: "That's a few too many questions at once. Give it a minute.",
   too_long: "This conversation has got too long for the model to hold. Start a new one and it'll have room again.",
 };
 
 function explainFailure(error) {
   if (error?.reason && FAILURES[error.reason]) return FAILURES[error.reason];
-  if (error?.status === 429) return FAILURES.rate_limited;
   return `Something went wrong: ${error?.message ?? error}`;
 }
 

@@ -34,7 +34,6 @@ const list = (source, key) => source.match(new RegExp(`^\\s*${key}\\s*=\\s*\\[([
 const OMITTED = {
   "[ai]": "no local simulator; declaring it forces a remote proxy session",
   "[[d1_databases]]": "no useful local behaviour for what these tests cover",
-  "unsafe.bindings": "the rate-limit binding does not enforce locally",
 };
 
 describe("wrangler configs", () => {

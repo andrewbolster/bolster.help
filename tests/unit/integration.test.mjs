@@ -80,7 +80,7 @@ async function connect(endpoint) {
 describe("the MCP origin", () => {
   // The single assumption the Worker exists to work around. If this ever starts
   // sending CORS headers, the proxy stops being mandatory — though it would
-  // still be the only place the allowlist and rate limit live.
+  // still be the only place the allowlist lives.
   gate(it, needsNetwork)("sends no CORS headers, which is why the proxy is mandatory", async () => {
     const response = await fetch(mcpOrigin, {
       method: "OPTIONS",
@@ -128,23 +128,6 @@ describe("the MCP origin", () => {
 });
 
 describe("the deployed Worker", () => {
-  // Inert under `wrangler dev --local`: the binding exists but never refuses,
-  // so only a deployment can show the limit actually enforcing.
-  gate(it, needsDeployment)("rate limits a burst to 429", async () => {
-    // `ping` rather than tools/list: it is on the method allowlist but the
-    // Worker still forwards it, so this measures the limiter without leaning on
-    // a session the burst does not establish.
-    const send = () =>
-      fetch(`${deployedOrigin}/mcp-proxy`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
-      }).then((r) => r.status);
-
-    const burst = await Promise.all(Array.from({ length: 45 }, send));
-    assert.ok(burst.includes(429), `no request was limited; saw ${[...new Set(burst)].join(", ")}`);
-  });
-
   gate(it, needsDeployment)("serves the proxy and the page from one origin", async () => {
     // SameSite=Lax means the session cookie only travels if the page and the
     // Worker share an origin. In development they do not, which is why auth is

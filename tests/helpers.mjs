@@ -42,11 +42,6 @@ export function fakeAI({ reply, throws, neurons = 1.2 } = {}) {
 
 export const aiError = (code) => Object.assign(new Error(`${code}: AiError: simulated`), { code });
 
-// Cloudflare's rate-limit binding, pinned to one answer. That we handle
-// `{ success: false }` is testable; that the real binding counts to 30 in 60s
-// is not — see the deployed gate.
-export const rateLimit = (success) => ({ limit: async () => ({ success }) });
-
 // An in-memory stand-in for KV, used only by the `unit` project. The `worker`
 // project gets the real binding from wrangler.toml.
 export function memoryKV(seed = {}) {
