@@ -6,7 +6,7 @@ import { createStore, isStoreTool } from "./store.js";
 
 export { SYSTEM_PROMPT };
 
-const MAX_ROUNDS = 5;
+const MAX_ROUNDS = 32;
 
 // Small models sometimes emit the argument object double-encoded — a JSON
 // string whose contents are themselves JSON — so parsing once yields a string
