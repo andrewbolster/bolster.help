@@ -194,10 +194,16 @@ CLOUDFLARE_API_TOKEN=... npx wrangler deploy
 ```
 
 `wrangler deploy` reads `wrangler.toml` directly — there is no separate
-binding list to keep in step with it, and no migration flag to remember:
-Cloudflare tracks which Durable Object migration tags a script has already
-applied, so the `[[migrations]]` block in `wrangler.toml` is safe to leave in
-place and redeploy against indefinitely.
+binding list to keep in step with it. The Durable Object counter is declared
+with `exports`, not the legacy `[[migrations]]` array: this Worker's
+provisioning history predates wrangler (it was deployed via the raw scripts
+API), and the first real deploy through this pipeline found that a fresh
+`[[migrations]] tag = "v1"` was read as a new step to apply rather than one
+already satisfied — Cloudflare refused it with "already depended on by
+existing Durable Objects" (`10074`), even though the class had been live for
+months. `exports` declares the class's desired state instead of a migration
+step, and reconciles against what is actually provisioned, so redeploying the
+same entry is a no-op by design.
 
 ## Setup that needs account access
 

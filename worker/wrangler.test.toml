@@ -34,6 +34,6 @@ id = "test-sessions"
 name = "NEURON_BUDGET"
 class_name = "NeuronBudget"
 
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["NeuronBudget"]
+[exports.NeuronBudget]
+type = "durable-object"
+storage = "sqlite"

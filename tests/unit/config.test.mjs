@@ -45,10 +45,11 @@ describe("wrangler configs", () => {
   });
 
   // Free-plan Durable Objects must be SQLite-backed, and the counter's storage
-  // is SQL — a key-value migration would fail at deploy, not in tests.
-  it("agree the Durable Object is SQLite-backed", () => {
+  // is SQL — a key-value class would fail at deploy, not in tests.
+  it("agree the Durable Object is a live, SQLite-backed export", () => {
     for (const source of [live, test]) {
-      expect(list(source, "new_sqlite_classes")).toMatch(/NeuronBudget/);
+      expect(source).toMatch(/\[exports\.NeuronBudget\]/);
+      expect(source).toMatch(/storage\s*=\s*"sqlite"/);
     }
   });
 
