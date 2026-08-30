@@ -1,0 +1,56 @@
+name: worker
+
+# Deploys worker/ to Cloudflare on every push to main that touches it.
+#
+# wrangler deploy reads worker/wrangler.toml directly, so that file is the
+# only place bindings are declared — there is no second, hand-copied list to
+# keep in step with it. A worker/deploy.sh used to exist to work around an API
+# token that (at the time) could not read /accounts/{id}/workers/subdomain,
+# which wrangler checks on every deploy; that token now can, so the plain
+# tool replaces the workaround.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "worker/**"
+      - ".github/workflows/worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never let two deploys race for the live Worker; queue instead of
+# cancelling, so the last push to land is the one that ends up served.
+concurrency:
+  group: worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    name: deploy
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: cloudflare-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: worker
+          # Pinned: nothing else in the repo pins a wrangler version, and this
+          # is the one deploying to production.
+          wranglerVersion: "4.127.1"
