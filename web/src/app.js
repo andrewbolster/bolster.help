@@ -2,6 +2,7 @@ import { createAgent } from "./agent.js";
 import { McpClient } from "./mcp.js";
 import { createProxyEngine } from "./providers.js";
 import { API_ORIGIN, PROXY_ENDPOINT } from "./config.js";
+import { renderMarkdown } from "./markdown.js";
 
 const el = (id) => document.getElementById(id);
 const HISTORY_KEY = "bolster.help/transcript";
@@ -27,6 +28,13 @@ const write = (key, value) => {
   }
 };
 
+// Arguments as the model sent them, short enough to sit in a summary line.
+function formatArgs(args) {
+  if (!args || !Object.keys(args).length) return "";
+  const rendered = JSON.stringify(args);
+  return rendered.length > 120 ? `${rendered.slice(0, 117)}…` : rendered.slice(1, -1);
+}
+
 function render(transcript, history) {
   transcript.replaceChildren(
     ...history.map((turn) => {
@@ -35,9 +43,15 @@ function render(transcript, history) {
       const who = document.createElement("span");
       who.className = "who";
       who.textContent = turn.role === "user" ? "You" : "bolster.help";
-      const body = document.createElement("p");
-      body.textContent = turn.content;
-      li.append(who, body);
+      li.append(who);
+      if (turn.role === "assistant" && turn.content) {
+        // Models write Markdown whether or not you ask them to.
+        li.append(renderMarkdown(turn.content));
+      } else if (turn.content) {
+        const body = document.createElement("p");
+        body.textContent = turn.content;
+        li.append(body);
+      }
       if (turn.display) {
         const shown = document.createElement(turn.display.format === "code" ? "pre" : "div");
         shown.className = `shown ${turn.display.format}`;
@@ -52,11 +66,35 @@ function render(transcript, history) {
         shown.textContent = turn.display.content;
         li.append(shown);
       }
-      if (turn.tools?.length) {
-        const used = document.createElement("p");
-        used.className = "tools";
-        used.textContent = `Asked: ${turn.tools.join(", ")}`;
-        li.append(used);
+      if (turn.calls?.length) {
+        // Folded away by default: what was asked and what came back is worth
+        // being able to check, and worth not reading every time.
+        const outer = document.createElement("details");
+        outer.className = "calls";
+        const summary = document.createElement("summary");
+        summary.textContent = `${turn.calls.length} tool call${turn.calls.length === 1 ? "" : "s"}: ${turn.calls.map((c) => c.name).join(", ")}`;
+        outer.append(summary);
+
+        for (const call of turn.calls) {
+          const one = document.createElement("details");
+          one.className = "call";
+          const label = document.createElement("summary");
+          label.textContent = `${call.name}(${formatArgs(call.args)})`;
+          one.append(label);
+
+          const output = document.createElement("details");
+          output.className = "call-output";
+          const outputLabel = document.createElement("summary");
+          outputLabel.textContent = call.result === undefined ? "no result" : `output — ${String(call.result).length} characters`;
+          output.append(outputLabel);
+          const pre = document.createElement("pre");
+          pre.textContent = call.result ?? "";
+          output.append(pre);
+
+          one.append(output);
+          outer.append(one);
+        }
+        li.append(outer);
       }
       return li;
     }),
@@ -187,7 +225,7 @@ function main() {
     render(transcript, history);
 
     const pending = history[history.length - 1];
-    const used = [];
+    const calls = [];
 
     try {
       const agent = await state.agent;
@@ -200,9 +238,15 @@ function main() {
       const { content } = await agent(priorTurns, question, {
         onEvent: (e) => {
           if (e.type === "tool") {
-            used.push(e.name);
+            calls.push({ name: e.name, args: e.args });
             pending.content = `Checking ${e.name}…`;
             render(transcript, history);
+          }
+          if (e.type === "result") {
+            // Pair the output with the call it answers, so the transcript can
+            // show exactly what the model was given.
+            const waiting = calls.findLast((c) => c.name === e.name && c.result === undefined);
+            if (waiting) waiting.result = e.content;
           }
           if (e.type === "display") {
             // Shown to the reader without passing through the model's context,
@@ -217,7 +261,7 @@ function main() {
         },
       });
       pending.content = content;
-      pending.tools = used;
+      pending.calls = calls;
     } catch (err) {
       pending.content = `Something went wrong: ${err.message}`;
     }

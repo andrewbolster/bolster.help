@@ -32,14 +32,15 @@ describe("CORS", () => {
     assert.equal(response.headers.get("access-control-allow-origin"), "http://localhost:5173");
   });
 
-  // Pages builds each get their own hostname, so the preview pattern is matched
-  // rather than enumerated.
-  it("accepts any pages.dev preview deployment", async () => {
+  // The allowlist is exact. A *.pages.dev wildcard was here for Cloudflare
+  // preview deployments and admitted anyone's Pages site once we stopped using
+  // them.
+  it("does not admit a pages.dev origin", async () => {
     const response = await worker.fetch(
       request("/nope", { origin: "https://abc-123.pages.dev" }),
       fakeEnv(),
     );
-    assert.equal(response.headers.get("access-control-allow-origin"), "https://abc-123.pages.dev");
+    assert.equal(response.headers.get("access-control-allow-origin"), "https://bolster.help");
   });
 
   it("falls back to the canonical origin for anything else", async () => {

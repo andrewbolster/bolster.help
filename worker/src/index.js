@@ -18,7 +18,10 @@ const MAX_BODY_BYTES = 16 * 1024;
 function corsHeaders(request, env) {
   const allowed = (env.ALLOWED_ORIGINS ?? DEFAULT_ORIGINS).split(",").map((s) => s.trim());
   const origin = request.headers.get("origin");
-  const ok = origin && (allowed.includes(origin) || /^https:\/\/[a-z0-9-]+\.pages\.dev$/.test(origin));
+  // Exact matches only. A wildcard for *.pages.dev was here while the site ran
+  // on Cloudflare Pages previews; it is served from GitHub Pages now, so the
+  // pattern admitted anyone's Pages deployment in exchange for nothing.
+  const ok = origin !== null && allowed.includes(origin);
   return {
     "access-control-allow-origin": ok ? origin : allowed[0],
     "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
