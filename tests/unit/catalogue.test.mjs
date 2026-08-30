@@ -1,5 +1,5 @@
 // Agreement between the three lists that have to stay in step: the tool
-// snapshot, the proxy allowlist, and the retrieval fixtures.
+// snapshot, the proxy allowlist, and the question fixtures.
 //
 // Nothing keeps them aligned automatically. `refresh-tools` is manual, the
 // allowlist is hand-written on purpose, and fixtures are added by whoever adds
@@ -72,7 +72,7 @@ describe("proxy allowlist", () => {
   });
 });
 
-describe("retrieval fixtures", () => {
+describe("question fixtures", () => {
   it("expect only tools that exist upstream", () => {
     const phantom = fixtures.filter((f) => !upstream.has(f.expect)).map((f) => f.expect);
     assert.deepEqual(phantom, [], "fixtures reference tools missing from tools.json");
@@ -83,8 +83,8 @@ describe("retrieval fixtures", () => {
     assert.deepEqual(unreachable, [], "a fixture cannot expect a tool the proxy refuses");
   });
 
-  // Retrieval is a gate, so an allowlisted tool with no fixture is a tool
-  // nobody has checked is reachable by any phrasing at all.
+  // A fixture is a worked example of a question that tool should answer. An
+  // allowlisted tool without one is a tool nobody has checked is reachable.
   it("cover every allowlisted tool at least once", () => {
     const covered = new Set(fixtures.map((f) => f.expect));
     const uncovered = [...ALLOWED_TOOLS].filter((name) => !covered.has(name)).sort();

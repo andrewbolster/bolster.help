@@ -23,7 +23,7 @@ account is named in `GITHUB_ALLOWED_LOGINS` and the `LLM_*` secrets are set,
 `/llm` quietly uses those instead; there is no UI for it, and `/llm` re-decides
 on every call.
 
-The model was picked by measuring tool selection against the retrieval fixtures,
+The model was picked by measuring tool selection against the question fixtures,
 not by price. It scored 12/12 on the cases that matter — including the three
 near-identical NISRA index tools — at ~1.2 neurons a round. The reasoning models
 cost roughly ten times as much and chose worse: `glm-4.7-flash` managed 1/4,
@@ -58,12 +58,20 @@ browser cannot reach it directly. The Worker is also where the tool allowlist an
 rate limiting live; the origin itself stays open and unauthenticated, so anything
 bypassing the proxy reaches it unfiltered.
 
-## Why tools are retrieved rather than sent wholesale
+## Every tool is sent every turn
 
-All 36 tool schemas measure ~6900 tokens, which crowds out the conversation in a
-quantised 7–8B model. `web/src/retrieval.js` scores the user's message against
-the catalogue and passes only the top six schemas per turn — ~1100 tokens mean,
-~1750 worst case.
+All 36 schemas with their full descriptions measure ~19K tokens against a
+131K-token context, so there is nothing to save by trimming them.
+
+An earlier design scored the message against the catalogue and sent only the
+top six, with descriptions cut to their first paragraph. That was necessary
+when the plan was a quantised 7-8B model running in the browser. Against the
+current model it bought a little context and cost two things worth more: the
+assistant could not say what it was able to do, having never seen thirty of its
+own tools, and a tool ranked seventh was unreachable for that turn however well
+it fitted.
+
+`web/src/fixtures.json` remains as a corpus of worked question/tool pairs.
 
 ## Tests
 
@@ -73,8 +81,8 @@ npm run test:network      # adds the checks that reach mcp.bolster.online
 npm run refresh-tools     # re-snapshot tools/list into web/src/tools.json
 ```
 
-Vitest, in two projects. `unit` is plain Node — retrieval scoring, the agent
-loop, catalogue integrity. `worker` runs inside workerd through Cloudflare's
+Vitest, in two projects. `unit` is plain Node — the agent loop, the output
+store, catalogue integrity. `worker` runs inside workerd through Cloudflare's
 own plugin, so KV and the `NeuronBudget` Durable Object are real rather than
 stood in for. That matters most for the budget: it exists because KV cannot
 hold a counter safely, and a hand-written fake would assert the consistency we
@@ -106,9 +114,6 @@ needs a human at a browser to mint a session.
 
 Three assertions are load-bearing rather than incidental:
 
-- **Retrieval is a gate, not a metric.** The agent sends the top six schemas and
-  nothing else, so a tool ranked seventh is invisible to the model that turn and
-  no prompting recovers it. `recall@6` must be total.
 - **Every allowlisted tool has a fixture.** Otherwise it is a tool nobody has
   checked is reachable by any phrasing at all.
 - **`bolster_get_precipitation` and `send_contact_message` stay excluded**, by

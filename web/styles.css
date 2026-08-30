@@ -214,3 +214,21 @@ td {
 .fail {
   color: #b91c1c;
 }
+
+/* Content the model chose to show rather than say. Rendered as text in every
+   case — display_output offers no html format, because tool results influence
+   what the model writes and markup from that path would be an injection. */
+.shown {
+  margin-top: 0.4rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 2px solid var(--line);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.shown.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--surface);
+  border-left-color: var(--accent);
+}

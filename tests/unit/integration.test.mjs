@@ -94,8 +94,8 @@ describe("the MCP origin", () => {
   });
 
   // tools.json is a manual snapshot with no trigger to refresh it. Stale
-  // entries fail silently: retrieval offers the model a tool that no longer
-  // exists, or never offers one that does.
+  // entries fail silently: the model is offered a tool that no longer exists,
+  // or never hears about one that does.
   gate(it, needsNetwork)("still exposes exactly the tools in the snapshot", async () => {
     const rpc = await connect(mcpOrigin);
     const live = new Set((await rpc("tools/list")).tools.map((t) => t.name));
