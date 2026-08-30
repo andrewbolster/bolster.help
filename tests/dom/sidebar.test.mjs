@@ -27,18 +27,28 @@ const rows = () => [...document.querySelectorAll("#conversations li")];
 const titles = () => rows().map((li) => li.querySelector(".conversation-open")?.firstChild.textContent);
 const stored = () => JSON.parse(localStorage.getItem(KEY) ?? "[]");
 
+// The page's own <script> and <link> would send the environment off to fetch a
+// module and a stylesheet that are not what these tests are about.
+//
+// Parsed into a <template> and pruned through the DOM rather than pattern-matched
+// out. Two reasons: HTML is not a regular language, so a regex that looks like it
+// strips script tags reliably does not — `</script >` walks straight past it —
+// and a template's content is an inert fragment by specification, so nothing in
+// it loads or runs even before it is pruned.
+function markupOnly(html) {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  for (const node of template.content.querySelectorAll("script, link, title, meta")) node.remove();
+  return template.innerHTML;
+}
+
 // Handlers that touch the agent await a promise before they touch the DOM, so
 // a single microtask is not enough to see their effect.
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** Load the page, seed storage, and start the app against it. */
 async function startApp(seed = []) {
-  // Only the markup: a <link> or <script> in the injected page would send
-  // happy-dom off to fetch assets that are not being tested.
-  document.body.innerHTML = PAGE
-    .replace(/[\s\S]*<body>/i, "")
-    .replace(/<\/body>[\s\S]*/i, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "");
+  document.body.innerHTML = markupOnly(PAGE);
   localStorage.setItem(KEY, JSON.stringify(seed));
 
   // The app reaches for /usage, /me and the tool snapshot on start. None of
