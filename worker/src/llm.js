@@ -144,8 +144,14 @@ async function serveFreeTier(env, body, headers) {
     }
     if (kind.unauthorised) {
       // The most likely cause is the account's allocation being spent by
-      // something other than this Worker, which our own counter cannot see.
-      return json({ error: "inference is not available right now", reason: "unauthorised", code: kind.code }, 503, headers);
+      // something other than this Worker, which our own counter cannot see —
+      // this is the shape a sibling project draining the shared daily
+      // allocation actually takes. Latching here is what makes /usage tell
+      // the truth for the rest of the day instead of reporting the healthy
+      // number our own tally last saw, right up until someone happens to
+      // trigger this same failure again.
+      const usage = await budget.exhaust();
+      return json({ error: "inference is not available right now", reason: "unauthorised", code: kind.code, usage }, 503, headers);
     }
 
     // Nothing recognised it. The message is the only lead, so log it — the

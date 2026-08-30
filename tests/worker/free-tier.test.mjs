@@ -271,12 +271,18 @@ describe("failures say why", () => {
     expect(await reasonFor(new Error("upstream connection reset"))).toBe("unknown");
   });
 
-  it("reports an authentication failure as temporary and at our end", async () => {
-    const { env: environment } = withBudget({ AI: fakeAI({ throws: new Error("Authentication error (10000)") }) });
+  // The scenario this covers happened for real: a sibling project spent the
+  // account's shared allocation, so Cloudflare refused with no numeric code —
+  // and until this latched, /usage kept reporting the healthy number this
+  // Worker's own tally last saw, which is exactly backwards for a visitor
+  // trying to decide whether to wait it out or come back tomorrow.
+  it("reports an authentication failure as unauthorised and latches the budget", async () => {
+    const { stub, env: environment } = withBudget({ AI: fakeAI({ throws: new Error("Authentication error (10000)") }) });
     const response = await call(environment, null);
 
     expect(response.status).toBe(503);
     expect((await response.json()).reason).toBe("unauthorised");
+    expect((await stub.peek()).exhausted).toBe(true);
   });
 
   it("distinguishes a conversation that outgrew the context window", async () => {
