@@ -308,3 +308,14 @@ td {
   overflow: auto;
   white-space: pre-wrap;
 }
+
+/* Sits beside Send, and only once there is a conversation to be rid of. */
+#composer button.secondary {
+  padding: 0.55rem 0.8rem;
+  color: var(--muted);
+}
+
+#composer button.secondary:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}

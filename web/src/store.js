@@ -342,6 +342,12 @@ export function createStore({
       ].join("\n");
     },
 
+    /** Forget every handle. Used when the conversation is reset. */
+    clear() {
+      objects.clear();
+      counter = 0;
+    },
+
     /** Run one of the store's own tools. Throws with a usable message. */
     call(name, args = {}) {
       if (name === "read_output") {

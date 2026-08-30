@@ -244,3 +244,20 @@ describe("display_output goes to the reader, not the context", () => {
     expect(() => createStore().call("display_output", { content: "   " })).toThrow(/needs content/);
   });
 });
+
+describe("clearing", () => {
+  // A conversation reset should not leave the next one holding handles from a
+  // table it never fetched.
+  it("forgets every handle and restarts numbering", () => {
+    const store = createStore();
+    store.put("births", csv(500));
+    store.put("marriages", csv(500));
+    expect(store.size).toBe(2);
+
+    store.clear();
+
+    expect(store.size).toBe(0);
+    expect(() => store.call("read_output", { handle: "births#1" })).toThrow(/Nothing is stored/);
+    expect(store.put("births", csv(500))).toMatch(/births#1/);
+  });
+});

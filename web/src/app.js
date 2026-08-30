@@ -12,6 +12,12 @@ const HISTORY_KEY = "bolster.help/transcript";
 // chat. Signing in adds one thing: somewhere to keep the conversation.
 const state = { chatId: null, user: null, budget: null, agent: null };
 
+// Nothing to clear until there is something in the transcript.
+const updateClear = () => {
+  const button = el("clear");
+  if (button) button.hidden = !el("transcript").children.length;
+};
+
 const read = (key, fallback) => {
   try {
     return JSON.parse(sessionStorage.getItem(key)) ?? fallback;
@@ -195,6 +201,7 @@ function main() {
   const history = read(HISTORY_KEY, []);
   const transcript = el("transcript");
   render(transcript, history);
+  updateClear();
 
   refreshAccount();
   refreshBudget();
@@ -212,6 +219,22 @@ function main() {
 
   el("save-chat").addEventListener("click", () => saveChat(history));
 
+  // Unauthenticated conversations live in sessionStorage and nowhere else, so
+  // clearing is genuinely all there is to it. The agent's stored tool output
+  // goes too: handles from an abandoned conversation would otherwise survive
+  // into the next one.
+  el("clear").addEventListener("click", async () => {
+    history.length = 0;
+    state.chatId = null;
+    write(HISTORY_KEY, history);
+    (await state.agent)?.reset?.();
+    el("save-state").textContent = "";
+    el("progress").textContent = "";
+    render(transcript, history);
+    updateClear();
+    el("prompt").focus();
+  });
+
   el("composer").addEventListener("submit", async (event) => {
     event.preventDefault();
     const input = el("prompt");
@@ -221,8 +244,9 @@ function main() {
     input.value = "";
     input.disabled = true;
     history.push({ role: "user", content: question });
-    history.push({ role: "assistant", content: "…", tools: [] });
+    history.push({ role: "assistant", content: "…", calls: [] });
     render(transcript, history);
+    updateClear();
 
     const pending = history[history.length - 1];
     const calls = [];
@@ -268,6 +292,7 @@ function main() {
 
     render(transcript, history);
     write(HISTORY_KEY, history);
+    updateClear();
     input.disabled = false;
     input.focus();
   });

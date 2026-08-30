@@ -40,7 +40,13 @@ export function createAgent({ tools, engine, mcp, store }) {
   let emit = () => {};
   const active = store ?? createStore({ onDisplay: (display) => emit({ type: "display", ...display }) });
 
-  return async function run(history, userMessage, { onEvent = () => {} } = {}) {
+  // Attached to the returned function rather than taken as a parameter: the
+  // store belongs to the agent, and a caller resetting a conversation should
+  // not have to know that it exists.
+  run.reset = () => active.clear();
+  return run;
+
+  async function run(history, userMessage, { onEvent = () => {} } = {}) {
     emit = onEvent;
 
     const messages = [
@@ -90,5 +96,5 @@ export function createAgent({ tools, engine, mcp, store }) {
     const exhausted = "I could not settle on an answer for that one.";
     onEvent({ type: "answer", content: exhausted });
     return { messages, content: exhausted, rounds: MAX_ROUNDS };
-  };
+  }
 }
