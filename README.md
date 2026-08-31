@@ -45,9 +45,13 @@ on the status alone would get one of the two wrong.
 
 ## Conversations
 
-Conversations are kept in `localStorage` and go nowhere else. That is what an
-unauthenticated visitor gets by default, and it means the sidebar works before
-anyone signs in rather than being a reward for it. They can be renamed, deleted
+Conversations are kept in `localStorage` — nothing is persisted server-side
+unless a visitor signs in and saves one. That is what an unauthenticated
+visitor gets by default, and it means the sidebar works before anyone signs in
+rather than being a reward for it. Every message still passes through the
+Worker to reach the model, though, and each turn is logged there — see
+[Observability](#observability) — so "goes nowhere else" is true of storage,
+not of the request path. They can be renamed, deleted
 and exported as Markdown or JSON, with the tool calls and their output either
 included or left out — the same fold the transcript uses, because a transcript
 to send someone and a transcript to debug an answer want different things.
@@ -85,6 +89,22 @@ web/       static frontend (Cloudflare Pages)
 worker/    Cloudflare Worker: MCP proxy, auth, chat persistence
 scripts/   maintenance and verification scripts
 ```
+
+## Observability
+
+Workers Logs is on (`[observability]` in `wrangler.toml`) — free at 200K
+events/day, 3-day retention, nothing else to run. Every `/llm` turn logs the
+tier, message count, tools offered, the visitor's message in full, and on
+reply the finish reason, which tools the model chose, and neurons spent.
+Every MCP tool call logs its name, arguments, result size and latency. Every
+Workers AI failure logs its code and message, whichever branch handles it.
+
+Message content is logged in full, deliberately: bolster.help is anonymous
+and public, so it's a visitor's actual words rather than a structured
+parameter, and that was weighed against the alternative — metadata only, or
+a hash — before choosing full content for the diagnostic value on a site
+this small. Tool arguments get no such hesitation; they're constrained by
+each tool's schema (area, year, format), not free text.
 
 ## Why the proxy is mandatory
 

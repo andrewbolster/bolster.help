@@ -50,6 +50,8 @@ const json = (body, status, headers) =>
     headers: { ...headers, "content-type": "application/json" },
   });
 
+const lastUserMessage = (messages) => messages.findLast((m) => m.role === "user")?.content ?? "";
+
 export function allowedLogins(env) {
   return new Set(
     (env.GITHUB_ALLOWED_LOGINS ?? "")
@@ -108,8 +110,10 @@ async function relayToProvider(env, body, headers) {
   if (!upstream.ok) {
     // Upstream errors can quote the request, so report the status only rather
     // than risk relaying anything drawn from the key or its account.
+    console.error("shared-key provider failed:", upstream.status);
     return json({ error: `provider HTTP ${upstream.status}` }, 502, headers);
   }
+  console.log("LLM reply (shared):", { status: upstream.status });
   return new Response(text, { status: 200, headers: { ...headers, "content-type": "application/json" } });
 }
 
@@ -151,6 +155,12 @@ async function serveFreeTier(env, body, headers) {
   }
 
   const usage = await budget.spend(outcome.neurons);
+  const choice = outcome.reply.choices?.[0];
+  console.log("LLM reply:", {
+    finish_reason: choice?.finish_reason,
+    tool_calls: (choice?.message?.tool_calls ?? []).map((c) => c.function?.name),
+    neurons: outcome.neurons,
+  });
   return json({ ...outcome.reply, usage_budget: usage }, 200, headers);
 }
 
@@ -177,6 +187,13 @@ export async function llm(request, env, headers, user) {
   // to a working chat, and the page can say so plainly rather than reporting it
   // as another unexplained failure.
   if (wrong) return json({ error: wrong, reason: wrong === "conversation too long" ? "too_long" : "bad_request" }, 400, headers);
+
+  console.log("LLM turn:", {
+    tier,
+    messages: body.messages.length,
+    tools: body.tools?.length ?? 0,
+    message: lastUserMessage(body.messages),
+  });
 
   return tier === "shared"
     ? relayToProvider(env, body, headers)
