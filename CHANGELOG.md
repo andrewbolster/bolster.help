@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.1] - 2026-08-31
+
+- feat: auto-bump patch version and changelog on every push to main (#23)
+
+
 ## [0.1.0] - 2026-08-31
 
 Version tracking begins here. Every push to `main` from this point bumps the
