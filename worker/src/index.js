@@ -80,6 +80,9 @@ async function proxy(request, env, headers) {
     return reject(rpc, `tool not permitted: ${rpc.params?.name}`, headers);
   }
 
+  const isToolCall = rpc.method === "tools/call";
+  const started = Date.now();
+
   const session = request.headers.get("mcp-session-id");
   const upstream = await fetch(env.MCP_ORIGIN ?? "https://mcp.bolster.online/mcp", {
     method: "POST",
@@ -96,14 +99,30 @@ async function proxy(request, env, headers) {
   if (issued) out["mcp-session-id"] = issued;
 
   if (!upstream.ok) {
+    if (isToolCall) {
+      console.error("tool call failed:", rpc.params?.name, `upstream HTTP ${upstream.status}`);
+    }
     return rpcError(rpc.id, -32603, `upstream HTTP ${upstream.status}`, out);
   }
 
+  const upstreamText = await upstream.text();
+
   let body;
   try {
-    body = parseUpstream(await upstream.text());
+    body = parseUpstream(upstreamText);
   } catch (err) {
+    if (isToolCall) console.error("tool call failed:", rpc.params?.name, err.message);
     return rpcError(rpc.id, -32603, err.message, out);
+  }
+
+  if (isToolCall) {
+    console.log("tool call:", {
+      name: rpc.params?.name,
+      arguments: rpc.params?.arguments,
+      ok: !body?.error,
+      resultChars: upstreamText.length,
+      ms: Date.now() - started,
+    });
   }
 
   // Notifications carry no id and get an empty 202 upstream.
