@@ -127,6 +127,11 @@ async function serveFreeTier(env, body, headers) {
   } catch (err) {
     const kind = classify(err);
 
+    // Every failure is logged, not just the ones we can't name — Workers Logs
+    // is what makes this visible after the fact instead of only live under
+    // `wrangler tail`. Kept to the code and message: never the request.
+    console.error("Workers AI failed:", kind.code, kind.message);
+
     // Cloudflare's own accounting says the allocation is gone. That is
     // authoritative and ours is not, so latch it and stop issuing requests that
     // cannot succeed until 00:00 UTC.
@@ -142,10 +147,6 @@ async function serveFreeTier(env, body, headers) {
     if (kind.misconfigured) {
       return json({ error: "free tier misconfigured", reason: "misconfigured", code: kind.code }, 500, headers);
     }
-    // Nothing recognised it. The message is the only lead, so log it — the
-    // visitor gets a class rather than a shrug, and `wrangler tail` gets the
-    // detail. Errors here come from Cloudflare, not from the request.
-    console.error("Workers AI failed:", kind.code, kind.message);
     return json({ error: "inference failed", reason: "unknown", code: kind.code }, 502, headers);
   }
 

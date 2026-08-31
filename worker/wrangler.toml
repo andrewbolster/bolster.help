@@ -3,6 +3,13 @@ main = "src/index.js"
 compatibility_date = "2026-05-01"
 account_id = "1a929e6f9bfe075e1a8dd9f9003497d1"
 
+# console.log/error, exceptions and request metadata, queryable for 3 days —
+# free up to 200K events/day, which this is nowhere near. Finding today's
+# "inference failed" cause meant hand-reconstructing the request and querying
+# GraphQL analytics sideways; this is what should have been open the whole time.
+[observability]
+enabled = true
+
 [vars]
 MCP_ORIGIN = "https://mcp.bolster.online/mcp"
 ALLOWED_ORIGINS = "https://bolster.help,https://www.bolster.help,http://localhost:5173"
