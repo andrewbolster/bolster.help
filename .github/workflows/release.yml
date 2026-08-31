@@ -1,0 +1,76 @@
+name: release
+
+# Every push to main gets a patch version bump and a CHANGELOG entry — no
+# release PR, no gate. Nothing here is published anywhere (no PyPI, no npm
+# registry): the version exists purely as a record of what's live, since
+# worker.yml already deploys the same push on its own. Unlike bolster and
+# mcp.bolster.online's release-logic.yml, there's nothing to hold up — this
+# just needs to not double-count its own bump commit.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-version
+  cancel-in-progress: false
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    # GITHUB_TOKEN-authored pushes don't retrigger workflows, so this job's
+    # own commit (below) won't normally cause a second run — this check is
+    # belt-and-braces for the case something other than GITHUB_TOKEN pushes.
+    if: "!startsWith(github.event.head_commit.message, 'chore: bump version to')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          NEW_VERSION=$(jq -r '.version | split(".") | .[2] |= (tonumber + 1 | tostring) | join(".")' package.json)
+          jq --arg v "$NEW_VERSION" '.version = $v' package.json > /tmp/package.json
+          mv /tmp/package.json package.json
+          echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
+
+      - name: Add changelog entry
+        env:
+          SUBJECT: ${{ github.event.head_commit.message }}
+        run: |
+          python3 - <<'PYEOF'
+          import os
+          from datetime import date
+          from pathlib import Path
+
+          version = os.environ["NEW_VERSION"]
+          subject = os.environ["SUBJECT"].splitlines()[0]
+          entry = f"\n## [{version}] - {date.today()}\n\n- {subject}\n"
+
+          path = Path("CHANGELOG.md")
+          content = path.read_text()
+          lines = content.split("\n")
+          for i, line in enumerate(lines):
+              if line.startswith("# "):
+                  lines.insert(i + 1, entry)
+                  break
+          path.write_text("\n".join(lines))
+          PYEOF
+
+      - name: Commit, tag, and push
+        run: |
+          git add package.json CHANGELOG.md
+          git commit -m "chore: bump version to ${NEW_VERSION}"
+          git tag "v${NEW_VERSION}"
+          git push origin main
+          git push origin "v${NEW_VERSION}"
