@@ -49,7 +49,7 @@ export function createAgent({ tools, engine, mcp, store }) {
   run.reset = () => active.clear();
   return run;
 
-  async function run(history, userMessage, { onEvent = () => {} } = {}) {
+  async function run(history, userMessage, { onEvent = () => {}, signal } = {}) {
     emit = onEvent;
 
     const messages = [
@@ -63,6 +63,7 @@ export function createAgent({ tools, engine, mcp, store }) {
         messages,
         tools: [...catalogue, ...active.tools()],
         tool_choice: "auto",
+        signal,
       });
 
       const choice = reply.choices[0].message;
@@ -87,8 +88,11 @@ export function createAgent({ tools, engine, mcp, store }) {
             ? lookupDocumentation(tools, args.tool)
             : isStoreTool(name)
               ? active.call(name, args)
-              : active.put(name, await mcp.callTool(name, args));
+              : active.put(name, await mcp.callTool(name, args, { signal }));
         } catch (err) {
+          // A cancelled turn should stop, not report the abort as a tool
+          // that merely failed and press on to the next round.
+          if (err.name === "AbortError") throw err;
           content = `Tool failed: ${err.message}`;
         }
         onEvent({ type: "result", name, content });

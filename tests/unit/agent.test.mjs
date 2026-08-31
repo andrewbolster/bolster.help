@@ -17,12 +17,15 @@ import { snapshot, fixtures } from "../helpers.mjs";
 function scriptedEngine(replies) {
   const queue = [...replies];
   const seen = [];
+  const signals = [];
   return {
     seen,
+    signals,
     chat: {
       completions: {
-        create: async ({ tools }) => {
+        create: async ({ tools, signal }) => {
           seen.push(tools);
+          signals.push(signal);
           return { choices: [{ message: queue.shift() ?? { content: "fallback", tool_calls: [] } }] };
         },
       },
@@ -128,6 +131,42 @@ describe("agent loop", () => {
     })([], "water quality in BT7?");
     assert.match(out.messages.find((m) => m.role === "tool").content, /Tool failed: upstream HTTP 500/);
     assert.equal(out.content, "That lookup failed.");
+  });
+
+  // A cancelled tool call must stop the turn, not read as "the tool broke" and
+  // press on into the next round the way a normal failure does.
+  it("propagates a cancelled tool call instead of reporting it as a failure", async () => {
+    const engine = scriptedEngine([call("bolster_water_quality", "{}")]);
+    const abortError = Object.assign(new Error("The operation was aborted."), { name: "AbortError" });
+    const controller = new AbortController();
+
+    await assert.rejects(
+      agentWith(engine, {
+        callTool: async () => {
+          throw abortError;
+        },
+      })([], "water quality in BT7?", { signal: controller.signal }),
+      (err) => err.name === "AbortError",
+    );
+  });
+
+  it("passes the abort signal to both the engine and the MCP client", async () => {
+    const engine = scriptedEngine([
+      call("bolster_water_quality", "{}"),
+      { content: "Here you go.", tool_calls: [] },
+    ]);
+    const controller = new AbortController();
+    const mcpSignals = [];
+
+    await agentWith(engine, {
+      callTool: async (_name, _args, { signal } = {}) => {
+        mcpSignals.push(signal);
+        return "fine";
+      },
+    })([], "water quality in BT7?", { signal: controller.signal });
+
+    assert.equal(engine.signals[0], controller.signal);
+    assert.equal(mcpSignals[0], controller.signal);
   });
 
   // The cap is a stop, not a budget: a model working through a dozen tools is

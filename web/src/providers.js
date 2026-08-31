@@ -16,12 +16,13 @@ export function createProxyEngine(endpoint, onBudget = () => {}) {
   return {
     chat: {
       completions: {
-        create: async ({ messages, tools, tool_choice }) => {
+        create: async ({ messages, tools, tool_choice, signal }) => {
           const response = await fetch(endpoint, {
             method: "POST",
             credentials: "include",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ messages, tools, tool_choice }),
+            signal,
           });
 
           if (!response.ok) {

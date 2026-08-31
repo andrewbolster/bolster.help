@@ -445,8 +445,16 @@ button:disabled {
   gap: 0.5rem;
 }
 
-#composer input {
+#composer textarea {
   flex: 1;
+  resize: none;
+  max-height: 10rem;
+  overflow-y: auto;
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  line-height: 1.4;
 }
 
 .visually-hidden {

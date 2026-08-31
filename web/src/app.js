@@ -11,7 +11,7 @@ const el = (id) => document.getElementById(id);
 // There is no setup step. Inference runs on the deployment's own allocation, so
 // a visitor has nothing to configure and nothing to bring — the page is the
 // chat. Signing in adds one thing: somewhere to keep the conversation.
-const state = { chatId: null, user: null, budget: null, agent: null, conversationId: null };
+const state = { chatId: null, user: null, budget: null, agent: null, conversationId: null, pendingAbort: null };
 
 const conversations = createConversations();
 
@@ -20,6 +20,14 @@ const updateClear = () => {
   const button = el("clear");
   if (button) button.hidden = !el("transcript").children.length;
 };
+
+// One button doubles as Send and Stop rather than showing a second button
+// that's only ever relevant for as long as the first one is disabled.
+function setSendButtonState(mode) {
+  const button = el("send");
+  button.textContent = mode === "stop" ? "Stop" : "Send";
+  button.classList.toggle("secondary", mode === "stop");
+}
 
 // Arguments as the model sent them, short enough to sit in a summary line.
 function formatArgs(args) {
@@ -496,13 +504,41 @@ export function main() {
     el("prompt").focus();
   });
 
+  // A textarea doesn't submit on Enter the way a single-line input did, so
+  // Enter is a newline for free now — Alt+Enter is the one thing that needs
+  // wiring up explicitly.
+  el("prompt").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && event.altKey) {
+      event.preventDefault();
+      el("composer").requestSubmit();
+    }
+  });
+
+  // Grows with what's typed rather than scrolling a fixed box — capped by
+  // max-height in CSS, which is what makes it scroll past that point.
+  el("prompt").addEventListener("input", (event) => {
+    const field = event.currentTarget;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+  });
+
   el("composer").addEventListener("submit", async (event) => {
     event.preventDefault();
+
+    // The same button is Send when idle and Stop while a turn is running —
+    // submitting the form while one is already in flight means "cancel it",
+    // not "start another".
+    if (state.pendingAbort) {
+      state.pendingAbort.abort();
+      return;
+    }
+
     const input = el("prompt");
     const question = input.value.trim();
     if (!question) return;
 
     input.value = "";
+    input.style.height = "";
     input.disabled = true;
     history.push({ role: "user", content: question });
     history.push({ role: "assistant", content: "…", calls: [] });
@@ -511,6 +547,9 @@ export function main() {
 
     const pending = history[history.length - 1];
     const calls = [];
+    const controller = new AbortController();
+    state.pendingAbort = controller;
+    setSendButtonState("stop");
 
     try {
       const agent = await state.agent;
@@ -521,6 +560,7 @@ export function main() {
       const priorTurns = history.slice(0, -2).map(({ role, content }) => ({ role, content }));
 
       const { content } = await agent(priorTurns, question, {
+        signal: controller.signal,
         onEvent: (e) => {
           if (e.type === "tool") {
             calls.push({ name: e.name, args: e.args });
@@ -548,15 +588,24 @@ export function main() {
       pending.content = content;
       pending.calls = calls;
     } catch (err) {
-      pending.content = explainFailure(err);
-      // A failure that means capacity is gone should be reflected in the bar,
-      // which otherwise goes on reporting whatever it last saw.
-      if (err?.reason === "exhausted") {
-        state.budget = { ...state.budget, enabled: true, exhausted: true };
-        renderBudget();
+      // Stopped by the reader, not a failure — say so plainly rather than
+      // running it through wording written for something going wrong.
+      if (err?.name === "AbortError") {
+        pending.content = "(cancelled)";
+        pending.calls = calls;
+      } else {
+        pending.content = explainFailure(err);
+        // A failure that means capacity is gone should be reflected in the bar,
+        // which otherwise goes on reporting whatever it last saw.
+        if (err?.reason === "exhausted") {
+          state.budget = { ...state.budget, enabled: true, exhausted: true };
+          renderBudget();
+        }
       }
     }
 
+    state.pendingAbort = null;
+    setSendButtonState("send");
     render(transcript, history);
     persist(history);
     updateClear();
