@@ -85,13 +85,6 @@ export class NeuronBudget extends DurableObject {
     this.#write(day, Math.max(current.neurons, DAILY_NEURONS), current.requests);
     return this.peek();
   }
-
-  // TEMPORARY — clears today's bad latch from the classify() bug this fixes.
-  // Remove this method and its route in index.js in the next commit.
-  clearToday() {
-    this.#write(utcDay(), 0, 0);
-    return this.peek();
-  }
 }
 
 // One instance for the whole deployment: the allocation is per-account, so

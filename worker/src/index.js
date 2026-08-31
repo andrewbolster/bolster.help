@@ -9,7 +9,6 @@ import { ALLOWED_METHODS, ALLOWED_TOOLS } from "./allowlist.js";
 import { callback, login, logout, session } from "./auth.js";
 import { chats } from "./chats.js";
 import { canUseSharedKey, llm, usage } from "./llm.js";
-import { budgetOf } from "./budget.js"; // TEMPORARY, see /admin/clear-today-budget below
 
 export { NeuronBudget } from "./budget.js";
 
@@ -132,12 +131,6 @@ export default {
     // Public: it reports the deployment's own allowance, not anything about
     // the caller, and the page needs it before anyone has signed in.
     if (pathname === "/usage") return json(await usage(env), 200, headers);
-
-    // TEMPORARY — one-shot clear of today's bad latch (see #16). Removed in
-    // the next commit, once it's been called.
-    if (pathname === "/admin/clear-today-budget" && request.method === "POST") {
-      return json(await budgetOf(env).clearToday(), 200, headers);
-    }
 
     if (pathname === "/llm") {
       const user = await session(request, env);
