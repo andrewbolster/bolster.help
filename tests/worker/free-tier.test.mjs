@@ -222,29 +222,23 @@ describe("Workers AI error handling", () => {
     expect(classify(new Error("something else")).code).toBe(0);
   });
 
-  // The case that actually turned up: the account's allocation was spent by
-  // something other than this Worker, so our own counter still read healthy and
-  // Cloudflare refused with no numeric code to go on. Only the text said why.
-  it("recognises exhaustion from the message when there is no code", () => {
+  // The case that actually turned up: an unrecognised code (4006, not 3036)
+  // whose message happened to share vocabulary with a real exhaustion
+  // message. A guess from text alone latched a whole day's budget on zero
+  // real spend. Only a code we recognise gets to make that call now.
+  it("does not guess exhaustion from message text without a matching code", () => {
     for (const message of [
       "You have used up your daily free allocation of neurons",
       "Account limited",
       "quota exceeded for this account",
     ]) {
-      expect(classify(new Error(message)).exhausted, message).toBe(true);
+      expect(classify(new Error(message)).exhausted, message).toBe(false);
     }
-  });
-
-  it("recognises an authentication failure from the message", () => {
-    const kind = classify(new Error("Authentication error (10000)"));
-    expect(kind.unauthorised).toBe(true);
-    expect(kind.exhausted).toBe(false);
   });
 
   it("does not read exhaustion into an unrelated failure", () => {
     const kind = classify(new Error("upstream connection reset"));
     expect(kind.exhausted).toBe(false);
-    expect(kind.unauthorised).toBe(false);
     expect(kind.transient).toBe(false);
     expect(kind.misconfigured).toBe(false);
   });
@@ -271,18 +265,18 @@ describe("failures say why", () => {
     expect(await reasonFor(new Error("upstream connection reset"))).toBe("unknown");
   });
 
-  // The scenario this covers happened for real: a sibling project spent the
-  // account's shared allocation, so Cloudflare refused with no numeric code —
-  // and until this latched, /usage kept reporting the healthy number this
-  // Worker's own tally last saw, which is exactly backwards for a visitor
-  // trying to decide whether to wait it out or come back tomorrow.
-  it("reports an authentication failure as unauthorised and latches the budget", async () => {
-    const { stub, env: environment } = withBudget({ AI: fakeAI({ throws: new Error("Authentication error (10000)") }) });
+  // The regression this covers happened for real: code 4006 (unrecognised)
+  // with a message that happened to say "exceeded" latched a whole day's
+  // budget on zero real spend. An unrecognised code must never touch it.
+  it("does not latch the budget on an unrecognised code, even exhaustion-sounding text", async () => {
+    const { stub, env: environment } = withBudget({
+      AI: fakeAI({ throws: Object.assign(new Error("quota exceeded"), { code: 4006 }) }),
+    });
     const response = await call(environment, null);
 
-    expect(response.status).toBe(503);
-    expect((await response.json()).reason).toBe("unauthorised");
-    expect((await stub.peek()).exhausted).toBe(true);
+    expect(response.status).toBe(502);
+    expect((await response.json()).reason).toBe("unknown");
+    expect((await stub.peek()).exhausted).toBe(false);
   });
 
   it("distinguishes a conversation that outgrew the context window", async () => {
