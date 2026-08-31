@@ -36,6 +36,10 @@ const PREVIEW_LINES = 8;
 const MAX_OBJECTS = 64;
 const MAX_MATCHES = 40;
 const MAX_WINDOW = 200;
+// A grouped aggregate over years never needs more than a lifetime's worth;
+// this only bites if group_by is pointed at a high-cardinality column by
+// mistake, and caps the damage rather than the column choice being wrong.
+const MAX_GROUPS = 100;
 
 const shape = (text) => {
   const lines = text.split("\n");
@@ -110,6 +114,24 @@ function findTable(lines) {
   return { header: best.header, rows: best.rows };
 }
 
+// Name or 0-based index, the same lookup aggregate_output offers for both
+// `column` and `group_by` — one rule, so a value that resolves one resolves
+// the other the same way.
+function resolveColumn(header, wanted) {
+  const text = String(wanted).trim();
+  let index = header.findIndex((h) => h.toLowerCase() === text.toLowerCase());
+  if (index === -1 && /^\d+$/.test(text)) index = Number(text);
+  if (index === -1 || index >= header.length) return -1;
+  return index;
+}
+
+// NISRA time series are keyed by their period's start date — a month or a
+// week, not a year — so grouping the raw value gives one row per month or
+// week rather than the year-over-year view that is almost always what is
+// actually wanted. A value shaped like a date buckets by its year; anything
+// else (a sex, a district, a year column that is already bare) groups as-is.
+const bucketKey = (value) => String(value).trim().match(/^(\d{4})-\d{2}(-\d{2})?/)?.[1] ?? String(value).trim();
+
 // The shape a preview cannot show.
 //
 // The first few lines of a long table say nothing about how it is grouped. A
@@ -168,8 +190,10 @@ export const STORE_TOOLS = [
       name: "aggregate_output",
       description:
         "Compute a total, count, average, minimum or maximum over a numeric column of a stored table, optionally over "
-        + "only the rows matching a pattern. Use this instead of adding numbers yourself — for example, to total a year "
-        + "of monthly figures.",
+        + "only the rows matching a pattern, and optionally one result per group instead of one overall. Use this "
+        + "instead of adding numbers yourself — for example, to total a year of monthly figures, or to get one total "
+        + "per year across many years. Cannot compute more than one thing per call: for a table with one row per "
+        + "year already broken down by column, call it once per column.",
       parameters: {
         type: "object",
         properties: {
@@ -177,6 +201,14 @@ export const STORE_TOOLS = [
           column: { type: "string", description: "Column to aggregate, by header name or 0-based index." },
           pattern: { type: "string", description: "Optional: only rows matching this, case-insensitive." },
           op: { type: "string", enum: ["sum", "count", "mean", "min", "max"], description: "Defaults to sum." },
+          group_by: {
+            type: "string",
+            description:
+              "Optional: also group by this column (name or 0-based index) — one aggregate per distinct value "
+              + "instead of one overall, e.g. one sum per year across a monthly table. A date-shaped value "
+              + "(YYYY-MM-DD or YYYY-MM) is grouped by its year, so grouping a monthly or weekly column by date "
+              + "gives one row per year rather than one per month or week.",
+          },
         },
         required: ["handle", "column"],
       },
@@ -438,11 +470,13 @@ export function createStore({
         const object = get(args.handle);
         const { header, rows } = findTable(object.lines);
 
-        const wanted = String(args.column).trim();
-        let index = header.findIndex((h) => h.toLowerCase() === wanted.toLowerCase());
-        if (index === -1 && /^\d+$/.test(wanted)) index = Number(wanted);
-        if (index === -1 || index >= header.length) {
-          throw new Error(`No column "${args.column}". Columns are: ${header.join(", ")}`);
+        const index = resolveColumn(header, args.column);
+        if (index === -1) throw new Error(`No column "${args.column}". Columns are: ${header.join(", ")}`);
+
+        let groupIndex = -1;
+        if (args.group_by !== undefined) {
+          groupIndex = resolveColumn(header, args.group_by);
+          if (groupIndex === -1) throw new Error(`No column "${args.group_by}". Columns are: ${header.join(", ")}`);
         }
 
         let match = () => true;
@@ -456,32 +490,54 @@ export function createStore({
           }
         }
 
-        const values = rows
-          .filter(match)
-          .map((row) => Number(row.split(",")[index]?.trim()))
-          .filter((v) => Number.isFinite(v));
+        const op = String(args.op ?? "sum").toLowerCase();
+        const apply = (values) => {
+          const total = values.reduce((a, b) => a + b, 0);
+          const result =
+            op === "count"
+              ? values.length
+              : op === "mean"
+                ? total / values.length
+                : op === "min"
+                  ? Math.min(...values)
+                  : op === "max"
+                    ? Math.max(...values)
+                    : total;
+          return Number.isInteger(result) ? result : Number(result.toFixed(2));
+        };
 
-        if (!values.length) {
-          const where = args.pattern ? ` matching "${args.pattern}"` : "";
-          return `No numeric values in column "${header[index]}"${where}.`;
+        const where = args.pattern ? ` matching "${args.pattern}"` : "";
+        const filtered = rows.filter(match);
+
+        if (groupIndex === -1) {
+          const values = filtered.map((row) => Number(row.split(",")[index]?.trim())).filter((v) => Number.isFinite(v));
+          if (!values.length) return `No numeric values in column "${header[index]}"${where}.`;
+          return `${op} of "${header[index]}"${where} over ${values.length} rows = ${apply(values)}`;
         }
 
-        const op = String(args.op ?? "sum").toLowerCase();
-        const total = values.reduce((a, b) => a + b, 0);
-        const result =
-          op === "count"
-            ? values.length
-            : op === "mean"
-              ? total / values.length
-              : op === "min"
-                ? Math.min(...values)
-                : op === "max"
-                  ? Math.max(...values)
-                  : total;
+        // One group per bucket key, values collected in the order rows arrive
+        // so a caller relying on Map's insertion order sees them chronologically
+        // for the common case (a date-shaped or already-sorted group column).
+        const groups = new Map();
+        for (const row of filtered) {
+          const cells = row.split(",");
+          const value = Number(cells[index]?.trim());
+          if (!Number.isFinite(value)) continue;
+          const key = bucketKey(cells[groupIndex]);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(value);
+        }
 
-        const rounded = Number.isInteger(result) ? result : Number(result.toFixed(2));
-        const where = args.pattern ? ` matching "${args.pattern}"` : "";
-        return `${op} of "${header[index]}"${where} over ${values.length} rows = ${rounded}`;
+        if (!groups.size) return `No numeric values in column "${header[index]}"${where}.`;
+
+        const keys = [...groups.keys()].sort();
+        const truncated = keys.length > MAX_GROUPS;
+        const lines = keys
+          .slice(0, MAX_GROUPS)
+          .map((key) => `${key} = ${apply(groups.get(key))} (${groups.get(key).length} rows)`);
+        if (truncated) lines.push(`… ${keys.length - MAX_GROUPS} more groups omitted`);
+
+        return `${op} of "${header[index]}"${where}, grouped by "${header[groupIndex]}":\n${lines.join("\n")}`;
       }
 
       throw new Error(`Unknown store tool ${name}`);

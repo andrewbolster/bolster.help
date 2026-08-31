@@ -170,6 +170,84 @@ describe("line endings", () => {
   });
 });
 
+describe("aggregating", () => {
+  it("resolves a column by name or by 0-based index the same way", () => {
+    const store = createStore();
+    store.put("t", csv(700));
+    const byName = store.call("aggregate_output", { handle: "t#1", column: "births", op: "sum" });
+    const byIndex = store.call("aggregate_output", { handle: "t#1", column: "2", op: "sum" });
+    expect(byName).toBe(byIndex);
+  });
+
+  it("names the available columns when given a column that does not exist", () => {
+    const store = createStore();
+    store.put("t", csv(700));
+    expect(() => store.call("aggregate_output", { handle: "t#1", column: "3" })).toThrow(
+      /No column "3"\. Columns are: month, sex, births/,
+    );
+  });
+
+  // The regression this covers is real: asked for one row per year across a
+  // 741-row monthly table, the model had no way to do that and fabricated a
+  // table instead — eleven consecutive years of identical invented numbers.
+  // group_by exists so the honest answer is also the reachable one.
+  describe("group_by", () => {
+    // 12 months × 3 years, comfortably over the inline threshold so the table
+    // is actually stored rather than passed through — a fixed value per year
+    // keeps the expected sums a one-line multiplication rather than a list of
+    // numbers to keep in sync by hand.
+    const YEAR_VALUE = { 2006: 100, 2007: 200, 2008: 300 };
+    const DAYS = ["01", "08", "15", "22"];
+    const births = () => {
+      const store = createStore();
+      // 12 months × 4 dates × 3 years = 144 rows — comfortably over the
+      // inline threshold, so this is actually stored rather than passed
+      // through whole.
+      const rows = Object.entries(YEAR_VALUE).flatMap(([year, value]) =>
+        Array.from({ length: 12 }, (_, m) =>
+          DAYS.map((day) => `${year}-${String(m + 1).padStart(2, "0")}-${day},Persons,${value}`),
+        ).flat(),
+      );
+      store.put("births", ["month,sex,births", ...rows].join("\n"));
+      return store;
+    };
+    const rowsPerYear = 12 * DAYS.length;
+
+    it("groups a date-shaped column by year, not by the exact date", () => {
+      const out = births().call("aggregate_output", { handle: "births#1", column: "births", group_by: "month" });
+      expect(out).toMatch(/grouped by "month"/);
+      for (const [year, value] of Object.entries(YEAR_VALUE)) {
+        expect(out).toMatch(new RegExp(`${year} = ${value * rowsPerYear} \\(${rowsPerYear} rows\\)`));
+      }
+    });
+
+    it("supports every op per group, not just sum", () => {
+      const out = births().call("aggregate_output", {
+        handle: "births#1",
+        column: "births",
+        group_by: "month",
+        op: "mean",
+      });
+      expect(out).toMatch(new RegExp(`2006 = 100 \\(${rowsPerYear} rows\\)`));
+    });
+
+    it("groups by a plain non-date column as itself", () => {
+      const store = createStore();
+      const rows = Array.from({ length: 80 }, (_, i) => `2024-01-01,${i % 2 ? "Male" : "Female"},${i}`);
+      store.put("t", ["month,sex,births", ...rows].join("\n"));
+      const out = store.call("aggregate_output", { handle: "t#1", column: "births", group_by: "sex", op: "count" });
+      expect(out).toMatch(/Male = 40 \(40 rows\)/);
+      expect(out).toMatch(/Female = 40 \(40 rows\)/);
+    });
+
+    it("names the available columns when group_by does not exist", () => {
+      expect(() => births().call("aggregate_output", { handle: "births#1", column: "births", group_by: "nope" })).toThrow(
+        /No column "nope"\. Columns are: month, sex, births/,
+      );
+    });
+  });
+});
+
 describe("write_output as working memory", () => {
   const seeded = () => {
     const store = createStore();
