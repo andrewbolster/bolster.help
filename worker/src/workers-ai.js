@@ -31,7 +31,7 @@ export const ACCOUNT_LIMITED = 3036; // daily allocation gone; no retry helps
 export const OUT_OF_CAPACITY = 3040; // no data centre free; worth retrying
 
 const TRANSIENT = new Set([OUT_OF_CAPACITY, 3007, 3008]);
-const MISCONFIGURED = new Set([5035, 3042, 5007]);
+const MISCONFIGURED = new Set([5035, 3042, 5007, 3023]); // 3023: account blocked
 
 // /ai/run rejects an assistant message whose content is null — which is exactly
 // what the model returns alongside tool_calls. Echoing a turn back verbatim
@@ -51,13 +51,13 @@ export function sanitize(messages) {
 // Errors arrive differently from the binding and from REST, so read the code
 // from either a property or the message text rather than trusting one shape.
 //
-// The code is not always there. An account whose allocation is spent elsewhere
-// can surface as a bare authentication failure with nothing numeric to match,
-// which is why the text is checked too — reporting that as "inference failed"
-// sends someone hunting a bug in their own request.
-const SOUNDS_EXHAUSTED = /neuron|daily limit|allocation|account limited|quota|exceeded/i;
-const SOUNDS_UNAUTHORISED = /authentication|unauthorized|unauthorised|forbidden|10000/i;
-
+// Only a code we recognise drives a decision. A previous version also matched
+// words in the message text ("quota", "exceeded", ...) to guess at exhaustion
+// when no code matched — it guessed wrong once, latching a whole day's budget
+// on an unrelated, unrecognised code (4006) that happened to share vocabulary
+// with a real exhaustion message. An unrecognised code is "unknown" now,
+// full stop: reported as a retryable failure, never as a verdict we can't
+// actually back up.
 export function classify(error) {
   const message = String(error?.message ?? error ?? "");
   const raw = error?.code ?? message.match(/\b(\d{4})\b/)?.[1];
@@ -66,12 +66,9 @@ export function classify(error) {
   return {
     code,
     message,
-    exhausted: code === ACCOUNT_LIMITED || SOUNDS_EXHAUSTED.test(message),
+    exhausted: code === ACCOUNT_LIMITED,
     transient: TRANSIENT.has(code),
     misconfigured: MISCONFIGURED.has(code),
-    // Distinct from misconfigured: the binding is right and the credential is
-    // not, which is what an account out of capacity can look like from here.
-    unauthorised: code === 3023 || (code === 0 && SOUNDS_UNAUTHORISED.test(message)),
   };
 }
 

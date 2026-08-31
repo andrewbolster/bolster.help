@@ -150,7 +150,6 @@ async function refreshAccount() {
 // whether waiting helps, whether retrying helps, or whether neither does.
 const FAILURES = {
   exhausted: "That's today's free capacity used up. It resets at midnight UTC — or sign in and bring your own model later.",
-  unauthorised: "That's today's free capacity used up elsewhere on the same account. It resets at midnight UTC, same as running out here.",
   busy: "The model is busy. Worth trying that again in a moment.",
   misconfigured: "Something is misconfigured at my end — this one needs Andrew rather than another attempt.",
   too_long: "This conversation has got too long for the model to hold. Start a new one and it'll have room again.",
@@ -552,7 +551,7 @@ export function main() {
       pending.content = explainFailure(err);
       // A failure that means capacity is gone should be reflected in the bar,
       // which otherwise goes on reporting whatever it last saw.
-      if (err?.reason === "exhausted" || err?.reason === "unauthorised") {
+      if (err?.reason === "exhausted") {
         state.budget = { ...state.budget, enabled: true, exhausted: true };
         renderBudget();
       }
