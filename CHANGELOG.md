@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - 2026-09-01
+
+- feat: multi-line composer input + cancel an in-flight turn (#24)
+
+
 ## [0.1.1] - 2026-08-31
 
 - feat: auto-bump patch version and changelog on every push to main (#23)
