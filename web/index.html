@@ -45,8 +45,14 @@
 
         <form id="composer">
           <label class="visually-hidden" for="prompt">Message</label>
-          <input id="prompt" type="text" autocomplete="off" placeholder="Ask me something…" autofocus />
-          <button type="submit">Send</button>
+          <textarea
+            id="prompt"
+            rows="1"
+            autocomplete="off"
+            placeholder="Ask me something… (Enter for a new line, Alt+Enter to send)"
+            autofocus
+          ></textarea>
+          <button id="send" type="submit">Send</button>
           <button id="clear" type="button" class="secondary" hidden>Clear</button>
         </form>
 

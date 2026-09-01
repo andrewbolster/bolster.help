@@ -13,7 +13,7 @@ export class McpClient {
     this.nextId = 1;
   }
 
-  async #rpc(method, params, { notification = false } = {}) {
+  async #rpc(method, params, { notification = false, signal } = {}) {
     const body = notification
       ? { jsonrpc: "2.0", method, params }
       : { jsonrpc: "2.0", id: this.nextId++, method, params };
@@ -25,6 +25,7 @@ export class McpClient {
         ...(this.session ? { "mcp-session-id": this.session } : {}),
       },
       body: JSON.stringify(body),
+      signal,
     });
 
     const issued = res.headers.get("mcp-session-id");
@@ -48,8 +49,8 @@ export class McpClient {
     return result;
   }
 
-  async callTool(name, args) {
-    const result = await this.#rpc("tools/call", { name, arguments: args ?? {} });
+  async callTool(name, args, { signal } = {}) {
+    const result = await this.#rpc("tools/call", { name, arguments: args ?? {} }, { signal });
     const text = (result?.content ?? [])
       .filter((c) => c.type === "text")
       .map((c) => c.text)
