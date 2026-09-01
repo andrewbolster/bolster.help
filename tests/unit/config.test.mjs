@@ -6,10 +6,10 @@
 // Two configs is a drift hazard — the same shape as tools.json against the
 // allowlist — so the agreement is asserted rather than assumed.
 
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (name) => readFileSync(join(root, "worker", name), "utf8");
@@ -28,7 +28,6 @@ const test = declarations(read("wrangler.test.toml"));
 
 // Enough TOML for the handful of keys that matter here.
 const value = (source, key) => source.match(new RegExp(`^\\s*${key}\\s*=\\s*"([^"]*)"`, "m"))?.[1];
-const list = (source, key) => source.match(new RegExp(`^\\s*${key}\\s*=\\s*\\[([^\\]]*)\\]`, "m"))?.[1];
 
 // Deliberately absent from the test config, each for a reason worth restating.
 const OMITTED = {

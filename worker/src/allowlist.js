@@ -43,10 +43,4 @@ export const ALLOWED_TOOLS = new Set([
   "get_recent_blog_posts",
 ]);
 
-export const ALLOWED_METHODS = new Set([
-  "initialize",
-  "notifications/initialized",
-  "tools/list",
-  "tools/call",
-  "ping",
-]);
+export const ALLOWED_METHODS = new Set(["initialize", "notifications/initialized", "tools/list", "tools/call", "ping"]);

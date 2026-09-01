@@ -3,8 +3,8 @@
 // Run manually when mcp.bolster.online gains or changes tools.
 
 import { writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ORIGIN = process.env.MCP_ORIGIN ?? "https://mcp.bolster.online";
 const ENDPOINT = `${ORIGIN}/mcp`;
@@ -33,7 +33,10 @@ async function rpc(method, params, sessionId) {
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
   if (!res.ok) throw new Error(`${method} -> HTTP ${res.status}`);
-  return { body: parseBody(await res.text()), sessionId: res.headers.get("mcp-session-id") };
+  return {
+    body: parseBody(await res.text()),
+    sessionId: res.headers.get("mcp-session-id"),
+  };
 }
 
 const init = await rpc("initialize", {
@@ -47,7 +50,10 @@ if (session) {
   await fetch(ENDPOINT, {
     method: "POST",
     headers: { ...HEADERS, "mcp-session-id": session },
-    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    }),
   });
 }
 
@@ -70,5 +76,5 @@ const snapshot = {
     .sort((a, b) => a.name.localeCompare(b.name)),
 };
 
-await writeFile(OUT, JSON.stringify(snapshot, null, 2) + "\n");
+await writeFile(OUT, `${JSON.stringify(snapshot, null, 2)}\n`);
 console.log(`wrote ${snapshot.tools.length} tools to ${OUT}`);

@@ -11,8 +11,8 @@
 // in for, because inference has no local simulator — and what those tests
 // check is our error handling, not Cloudflare's model.
 
-import snapshotJson from "../web/src/tools.json";
 import fixturesJson from "../web/src/fixtures.json";
+import snapshotJson from "../web/src/tools.json";
 
 export const snapshot = snapshotJson;
 export const fixtures = fixturesJson;
@@ -32,7 +32,15 @@ export function fakeAI({ reply, throws, neurons = 1.2 } = {}) {
       if (throws) throw throws;
       return (
         reply ?? {
-          choices: [{ message: { role: "assistant", content: "42 births.", tool_calls: [] } }],
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                content: "42 births.",
+                tool_calls: [],
+              },
+            },
+          ],
           usage: { prompt_tokens: 900, completion_tokens: 30, neurons },
         }
       );
@@ -88,21 +96,20 @@ export const chatBody = (extra = {}) => ({
 // needs, so a skipped run reads as a statement about the environment rather
 // than an untested assertion. Vitest has no skip-with-reason, so the reason
 // goes into the title, where every reporter prints it.
-export const needsNetwork = environment.CHECK_NETWORK === "1"
-  ? null
-  : "CHECK_NETWORK=1 — reaches mcp.bolster.online over the network";
+export const needsNetwork =
+  environment.CHECK_NETWORK === "1" ? null : "CHECK_NETWORK=1 — reaches mcp.bolster.online over the network";
 
 export const needsDeployment = environment.CHECK_DEPLOYED
   ? null
   : "CHECK_DEPLOYED=<worker-url> — Cloudflare bindings are inert under `wrangler dev --local`";
 
-export const needsProvider = environment.LLM_BASE_URL && environment.LLM_API_KEY
-  ? null
-  : "LLM_BASE_URL and LLM_API_KEY — spends real credit on a real provider";
+export const needsProvider =
+  environment.LLM_BASE_URL && environment.LLM_API_KEY
+    ? null
+    : "LLM_BASE_URL and LLM_API_KEY — spends real credit on a real provider";
 
 // Usage: const online = gate(it, needsNetwork); online("does X", async () => {})
-export const gate = (it, reason) => (title, fn) =>
-  reason ? it.skip(`${title} — needs ${reason}`, fn) : it(title, fn);
+export const gate = (it, reason) => (title, fn) => (reason ? it.skip(`${title} — needs ${reason}`, fn) : it(title, fn));
 
 export const deployedOrigin = environment.CHECK_DEPLOYED?.replace(/\/+$/, "");
 export const mcpOrigin = environment.MCP_ORIGIN ?? "https://mcp.bolster.online/mcp";

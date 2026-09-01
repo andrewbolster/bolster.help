@@ -1,7 +1,7 @@
 // Enough Markdown for what a model writes, and nothing that lets it write
 // something other than text into the page.
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parseInline, parseMarkdown } from "../../web/src/markdown.js";
 
 const types = (text) => parseMarkdown(text).map((b) => b.type);
@@ -9,23 +9,42 @@ const types = (text) => parseMarkdown(text).map((b) => b.type);
 describe("blocks", () => {
   it("reads headings, lists, quotes and rules", () => {
     expect(types("# Title\n\ntext\n\n- a\n- b\n\n> quoted\n\n---")).toEqual([
-      "heading", "paragraph", "list", "quote", "rule",
+      "heading",
+      "paragraph",
+      "list",
+      "quote",
+      "rule",
     ]);
   });
 
   it("keeps a fenced block whole, emphasis and all", () => {
     const [block] = parseMarkdown("```js\nconst x = **not bold**;\n```");
-    expect(block).toEqual({ type: "code", language: "js", text: "const x = **not bold**;" });
+    expect(block).toEqual({
+      type: "code",
+      language: "js",
+      text: "const x = **not bold**;",
+    });
   });
 
   it("numbers an ordered list and not a bulleted one", () => {
-    expect(parseMarkdown("1. one\n2. two")[0]).toEqual({ type: "list", ordered: true, items: ["one", "two"] });
+    expect(parseMarkdown("1. one\n2. two")[0]).toEqual({
+      type: "list",
+      ordered: true,
+      items: ["one", "two"],
+    });
     expect(parseMarkdown("- one")[0].ordered).toBe(false);
   });
 
   it("reads a table only when a divider row follows the header", () => {
     const [table] = parseMarkdown("| Month | Marriages |\n|---|---|\n| Aug | 1044 |\n| Sep | 853 |");
-    expect(table).toEqual({ type: "table", header: ["Month", "Marriages"], rows: [["Aug", "1044"], ["Sep", "853"]] });
+    expect(table).toEqual({
+      type: "table",
+      header: ["Month", "Marriages"],
+      rows: [
+        ["Aug", "1044"],
+        ["Sep", "853"],
+      ],
+    });
 
     // A sentence with pipes in it is a sentence.
     expect(types("a | b | c")).toEqual(["paragraph"]);

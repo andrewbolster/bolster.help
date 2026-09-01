@@ -12,7 +12,7 @@
 // most expensive one available.
 
 import { budgetOf } from "./budget.js";
-import { MAX_OUTPUT_TOKENS, classify, freeTierEnabled, runFreeTier } from "./workers-ai.js";
+import { classify, freeTierEnabled, MAX_OUTPUT_TOKENS, runFreeTier } from "./workers-ai.js";
 
 // Reject before parsing: a Worker has a few milliseconds of CPU, and
 // JSON.parse on a body someone chose is the cheapest way to spend all of it.
@@ -102,7 +102,10 @@ async function relayToProvider(env, body, headers) {
 
   const upstream = await fetch(`${env.LLM_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${env.LLM_API_KEY}` },
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${env.LLM_API_KEY}`,
+    },
     body: JSON.stringify(payload),
   });
 
@@ -114,7 +117,10 @@ async function relayToProvider(env, body, headers) {
     return json({ error: `provider HTTP ${upstream.status}` }, 502, headers);
   }
   console.log("LLM reply (shared):", { status: upstream.status });
-  return new Response(text, { status: 200, headers: { ...headers, "content-type": "application/json" } });
+  return new Response(text, {
+    status: 200,
+    headers: { ...headers, "content-type": "application/json" },
+  });
 }
 
 async function serveFreeTier(env, body, headers) {
@@ -149,7 +155,15 @@ async function serveFreeTier(env, body, headers) {
     // A pinned model that the plan cannot reach is a deploy mistake, not
     // something the visitor did or can fix.
     if (kind.misconfigured) {
-      return json({ error: "free tier misconfigured", reason: "misconfigured", code: kind.code }, 500, headers);
+      return json(
+        {
+          error: "free tier misconfigured",
+          reason: "misconfigured",
+          code: kind.code,
+        },
+        500,
+        headers,
+      );
     }
     return json({ error: "inference failed", reason: "unknown", code: kind.code }, 502, headers);
   }
@@ -186,7 +200,15 @@ export async function llm(request, env, headers, user) {
   // A conversation that outgrew the context window is a real thing that happens
   // to a working chat, and the page can say so plainly rather than reporting it
   // as another unexplained failure.
-  if (wrong) return json({ error: wrong, reason: wrong === "conversation too long" ? "too_long" : "bad_request" }, 400, headers);
+  if (wrong)
+    return json(
+      {
+        error: wrong,
+        reason: wrong === "conversation too long" ? "too_long" : "bad_request",
+      },
+      400,
+      headers,
+    );
 
   console.log("LLM turn:", {
     tier,
@@ -195,9 +217,7 @@ export async function llm(request, env, headers, user) {
     message: lastUserMessage(body.messages),
   });
 
-  return tier === "shared"
-    ? relayToProvider(env, body, headers)
-    : serveFreeTier(env, body, headers);
+  return tier === "shared" ? relayToProvider(env, body, headers) : serveFreeTier(env, body, headers);
 }
 
 // What the page needs to decide which form to show, and to draw the bar. Public

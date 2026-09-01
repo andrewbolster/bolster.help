@@ -6,8 +6,8 @@
 // leaves the page in a coherent state rather than showing a transcript that no
 // longer exists.
 
-import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Read relative to the repo root: under happy-dom, import.meta.url is the
 // page's URL rather than a file: one, so it cannot be resolved against.
@@ -54,7 +54,10 @@ async function startApp(seed = []) {
   // The app reaches for /usage, /me and the tool snapshot on start. None of
   // that is what these tests are about, and a hanging fetch would leave
   // unhandled rejections behind them.
-  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("{}", { status: 500 })),
+  );
 
   // Importing starts the app, because the injected page has the elements its
   // entry guard looks for. Calling main() as well would bind every listener

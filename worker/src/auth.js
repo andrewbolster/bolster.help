@@ -51,7 +51,10 @@ export async function callback(request, env) {
 
   const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json" },
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+    },
     body: JSON.stringify({
       client_id: env.GITHUB_CLIENT_ID,
       client_secret: env.GITHUB_CLIENT_SECRET,
@@ -80,11 +83,9 @@ export async function callback(request, env) {
   // The GitHub token is deliberately not kept: nothing here ever calls GitHub
   // again on the user's behalf.
   const token = crypto.randomUUID();
-  await env.SESSIONS.put(
-    `session:${token}`,
-    JSON.stringify({ github_id: profile.id, login: profile.login }),
-    { expirationTtl: SESSION_TTL },
-  );
+  await env.SESSIONS.put(`session:${token}`, JSON.stringify({ github_id: profile.id, login: profile.login }), {
+    expirationTtl: SESSION_TTL,
+  });
 
   return new Response(null, {
     status: 302,
@@ -100,7 +101,10 @@ export async function logout(request, env, headers) {
   if (token) await env.SESSIONS.delete(`session:${token}`);
   return new Response(null, {
     status: 204,
-    headers: { ...headers, "set-cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0` },
+    headers: {
+      ...headers,
+      "set-cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`,
+    },
   });
 }
 

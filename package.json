@@ -7,9 +7,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:network": "CHECK_NETWORK=1 vitest run --project unit",
+    "lint": "biome check .",
     "refresh-tools": "node scripts/refresh-tools.mjs"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.11",
     "@cloudflare/vitest-plugin": "^1.1.2",
     "happy-dom": "^20.12.0",
     "vitest": "^4.1.11"

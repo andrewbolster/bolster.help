@@ -5,7 +5,7 @@
 // first paragraph loses the part that matters. The prose is the useful middle,
 // and full_tool_documentation exists so nothing is unreachable.
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   DOCUMENTATION_TOOL,

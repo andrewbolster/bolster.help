@@ -17,6 +17,22 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      # Kept as its own job rather than folded into pre-commit-in-CI like
+      # the Python repos — this is the first lint tooling bolster.help has
+      # had at all, worth verifying in isolation before trusting the same
+      # pattern here too.
+      - run: npx biome ci .
+
   test:
     name: unit and worker
     runs-on: ubuntu-latest

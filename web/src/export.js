@@ -28,7 +28,11 @@ export function toMarkdown(conversation, { includeToolCalls = false } = {}) {
     lines.push(turn.role === "user" ? "### You" : "### bolster.help", "", turn.content, "");
 
     if (includeToolCalls && turn.calls?.length) {
-      lines.push("<details>", `<summary>${turn.calls.length} tool call${turn.calls.length === 1 ? "" : "s"}</summary>`, "");
+      lines.push(
+        "<details>",
+        `<summary>${turn.calls.length} tool call${turn.calls.length === 1 ? "" : "s"}</summary>`,
+        "",
+      );
       for (const call of turn.calls) {
         lines.push(`**\`${call.name}\`**`, "", "```json", JSON.stringify(call.args ?? {}, null, 2), "```", "");
         if (call.result !== undefined) {
@@ -39,7 +43,10 @@ export function toMarkdown(conversation, { includeToolCalls = false } = {}) {
     }
   }
 
-  return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trim()}\n`;
+  return `${lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()}\n`;
 }
 
 /** Render a conversation as JSON, which keeps everything Markdown flattens. */
@@ -54,11 +61,12 @@ export function toJSON(conversation, { includeToolCalls = false } = {}) {
 
 /** A filename that sorts by date and survives a filesystem. */
 export function exportFilename(conversation, extension) {
-  const slug = String(conversation.title ?? "conversation")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "conversation";
+  const slug =
+    String(conversation.title ?? "conversation")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40) || "conversation";
   return `${new Date(conversation.createdAt).toISOString().slice(0, 10)}-${slug}.${extension}`;
 }
 

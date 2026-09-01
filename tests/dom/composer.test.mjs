@@ -6,8 +6,8 @@
 // Alt+Enter still submits, and that the same Send button doubles as Stop
 // and genuinely aborts the in-flight request rather than just relabelling.
 
-import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PAGE = readFileSync("web/index.html", "utf8");
 
@@ -23,7 +23,10 @@ function markupOnly(html) {
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
 // Startup (tools.json, the MCP handshake) resolves immediately and quietly;
@@ -55,7 +58,12 @@ function stubFetch() {
     fetchMock,
     llmRequested,
     getSignal: () => llmSignal,
-    abortLlm: () => rejectLlm(Object.assign(new Error("The operation was aborted."), { name: "AbortError" })),
+    abortLlm: () =>
+      rejectLlm(
+        Object.assign(new Error("The operation was aborted."), {
+          name: "AbortError",
+        }),
+      ),
   };
 }
 
@@ -84,7 +92,13 @@ describe("the composer", () => {
     await startApp();
     const field = document.getElementById("prompt");
     field.value = "line one";
-    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
     await settled();
 
     // Nothing sent: the field still holds what was typed, and no turn
@@ -98,7 +112,12 @@ describe("the composer", () => {
     const field = document.getElementById("prompt");
     field.value = "how many mot tests last month?";
     field.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Enter", altKey: true, bubbles: true, cancelable: true }),
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
     );
 
     await llmRequested;

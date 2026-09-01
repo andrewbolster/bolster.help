@@ -85,7 +85,9 @@ export function evaluateExpression(expression) {
     const left = stack.pop();
     if (left === undefined || right === undefined) throw new Error(`Malformed expression "${expression}"`);
     if (token === "/" && right === 0) throw new Error("Division by zero");
-    stack.push(token === "+" ? left + right : token === "-" ? left - right : token === "*" ? left * right : left / right);
+    stack.push(
+      token === "+" ? left + right : token === "-" ? left - right : token === "*" ? left * right : left / right,
+    );
   }
   if (stack.length !== 1) throw new Error(`Malformed expression "${expression}"`);
   return stack[0];
@@ -130,7 +132,10 @@ function resolveColumn(header, wanted) {
 // week rather than the year-over-year view that is almost always what is
 // actually wanted. A value shaped like a date buckets by its year; anything
 // else (a sex, a district, a year column that is already bare) groups as-is.
-const bucketKey = (value) => String(value).trim().match(/^(\d{4})-\d{2}(-\d{2})?/)?.[1] ?? String(value).trim();
+const bucketKey = (value) =>
+  String(value)
+    .trim()
+    .match(/^(\d{4})-\d{2}(-\d{2})?/)?.[1] ?? String(value).trim();
 
 // The shape a preview cannot show.
 //
@@ -158,9 +163,7 @@ function describeColumns(lines) {
       if (cell) values.add(cell);
       if (values.size > MAX_LISTED_VALUES) break;
     }
-    return values.size <= MAX_LISTED_VALUES
-      ? `${name} (${[...values].join(", ")})`
-      : `${name} (many values)`;
+    return values.size <= MAX_LISTED_VALUES ? `${name} (${[...values].join(", ")})` : `${name} (many values)`;
   });
 
   return `Columns: ${described.join("; ")}`;
@@ -176,9 +179,18 @@ export const STORE_TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          handle: { type: "string", description: "The handle the output was stored under, e.g. births#1" },
-          start: { type: "integer", description: "First line to read, 1-based. Defaults to 1." },
-          lines: { type: "integer", description: `How many lines to read, at most ${MAX_WINDOW}. Defaults to 40.` },
+          handle: {
+            type: "string",
+            description: "The handle the output was stored under, e.g. births#1",
+          },
+          start: {
+            type: "integer",
+            description: "First line to read, 1-based. Defaults to 1.",
+          },
+          lines: {
+            type: "integer",
+            description: `How many lines to read, at most ${MAX_WINDOW}. Defaults to 40.`,
+          },
         },
         required: ["handle"],
       },
@@ -189,25 +201,38 @@ export const STORE_TOOLS = [
     function: {
       name: "aggregate_output",
       description:
-        "Compute a total, count, average, minimum or maximum over a numeric column of a stored table, optionally over "
-        + "only the rows matching a pattern, and optionally one result per group instead of one overall. Use this "
-        + "instead of adding numbers yourself — for example, to total a year of monthly figures, or to get one total "
-        + "per year across many years. Cannot compute more than one thing per call: for a table with one row per "
-        + "year already broken down by column, call it once per column.",
+        "Compute a total, count, average, minimum or maximum over a numeric column of a stored table, optionally over " +
+        "only the rows matching a pattern, and optionally one result per group instead of one overall. Use this " +
+        "instead of adding numbers yourself — for example, to total a year of monthly figures, or to get one total " +
+        "per year across many years. Cannot compute more than one thing per call: for a table with one row per " +
+        "year already broken down by column, call it once per column.",
       parameters: {
         type: "object",
         properties: {
-          handle: { type: "string", description: "The handle the output was stored under, e.g. births#1" },
-          column: { type: "string", description: "Column to aggregate, by header name or 0-based index." },
-          pattern: { type: "string", description: "Optional: only rows matching this, case-insensitive." },
-          op: { type: "string", enum: ["sum", "count", "mean", "min", "max"], description: "Defaults to sum." },
+          handle: {
+            type: "string",
+            description: "The handle the output was stored under, e.g. births#1",
+          },
+          column: {
+            type: "string",
+            description: "Column to aggregate, by header name or 0-based index.",
+          },
+          pattern: {
+            type: "string",
+            description: "Optional: only rows matching this, case-insensitive.",
+          },
+          op: {
+            type: "string",
+            enum: ["sum", "count", "mean", "min", "max"],
+            description: "Defaults to sum.",
+          },
           group_by: {
             type: "string",
             description:
-              "Optional: also group by this column (name or 0-based index) — one aggregate per distinct value "
-              + "instead of one overall, e.g. one sum per year across a monthly table. A date-shaped value "
-              + "(YYYY-MM-DD or YYYY-MM) is grouped by its year, so grouping a monthly or weekly column by date "
-              + "gives one row per year rather than one per month or week.",
+              "Optional: also group by this column (name or 0-based index) — one aggregate per distinct value " +
+              "instead of one overall, e.g. one sum per year across a monthly table. A date-shaped value " +
+              "(YYYY-MM-DD or YYYY-MM) is grouped by its year, so grouping a monthly or weekly column by date " +
+              "gives one row per year rather than one per month or week.",
           },
         },
         required: ["handle", "column"],
@@ -219,11 +244,16 @@ export const STORE_TOOLS = [
     function: {
       name: "calculate",
       description:
-        "Evaluate an arithmetic expression exactly. Use this rather than doing sums in your head — for example "
-        + "\"2002+1834+1901\". Supports + - * / ( ) and decimals.",
+        "Evaluate an arithmetic expression exactly. Use this rather than doing sums in your head — for example " +
+        '"2002+1834+1901". Supports + - * / ( ) and decimals.',
       parameters: {
         type: "object",
-        properties: { expression: { type: "string", description: "Arithmetic to evaluate, e.g. 1834+1901+2002" } },
+        properties: {
+          expression: {
+            type: "string",
+            description: "Arithmetic to evaluate, e.g. 1834+1901+2002",
+          },
+        },
         required: ["expression"],
       },
     },
@@ -233,9 +263,9 @@ export const STORE_TOOLS = [
     function: {
       name: "display_output",
       description:
-        "Show something to the person you are talking to — a table, a list, a chart in text form — without it taking "
-        + "up room in your own working context. Use this for anything long or richly formatted, then say briefly in "
-        + "your reply what you showed them.",
+        "Show something to the person you are talking to — a table, a list, a chart in text form — without it taking " +
+        "up room in your own working context. Use this for anything long or richly formatted, then say briefly in " +
+        "your reply what you showed them.",
       parameters: {
         type: "object",
         properties: {
@@ -245,7 +275,10 @@ export const STORE_TOOLS = [
             enum: ["markdown", "code", "text"],
             description: "How to render it. Defaults to markdown.",
           },
-          caption: { type: "string", description: "Optional one-line label shown above it." },
+          caption: {
+            type: "string",
+            description: "Optional one-line label shown above it.",
+          },
         },
         required: ["content"],
       },
@@ -256,15 +289,21 @@ export const STORE_TOOLS = [
     function: {
       name: "write_output",
       description:
-        "Save your own notes or intermediate working under a name you choose, then read them back later with "
-        + "read_output or search_output. Use this to keep partial results while working through a long table. "
-        + "Cannot overwrite output produced by a tool.",
+        "Save your own notes or intermediate working under a name you choose, then read them back later with " +
+        "read_output or search_output. Use this to keep partial results while working through a long table. " +
+        "Cannot overwrite output produced by a tool.",
       parameters: {
         type: "object",
         properties: {
-          handle: { type: "string", description: "A name for your note, e.g. totals-so-far" },
+          handle: {
+            type: "string",
+            description: "A name for your note, e.g. totals-so-far",
+          },
           text: { type: "string", description: "What to write." },
-          append: { type: "boolean", description: "Add to the end instead of replacing. Defaults to false." },
+          append: {
+            type: "boolean",
+            description: "Add to the end instead of replacing. Defaults to false.",
+          },
         },
         required: ["handle", "text"],
       },
@@ -279,9 +318,18 @@ export const STORE_TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          handle: { type: "string", description: "The handle the output was stored under, e.g. births#1" },
-          pattern: { type: "string", description: "Text or regular expression to look for, case-insensitive." },
-          limit: { type: "integer", description: `Most matches to return, at most ${MAX_MATCHES}. Defaults to 20.` },
+          handle: {
+            type: "string",
+            description: "The handle the output was stored under, e.g. births#1",
+          },
+          pattern: {
+            type: "string",
+            description: "Text or regular expression to look for, case-insensitive.",
+          },
+          limit: {
+            type: "integer",
+            description: `Most matches to return, at most ${MAX_MATCHES}. Defaults to 20.`,
+          },
         },
         required: ["handle", "pattern"],
       },
@@ -313,7 +361,9 @@ export function createStore({
   // repeat them back accurately for a follow-up call to land.
   const nextHandle = (name) => {
     counter += 1;
-    return `${String(name).replace(/^bolster_/, "").replace(/[^a-z0-9_]/gi, "")}#${counter}`;
+    return `${String(name)
+      .replace(/^bolster_/, "")
+      .replace(/[^a-z0-9_]/gi, "")}#${counter}`;
   };
 
   const get = (handle) => {
@@ -360,7 +410,11 @@ export function createStore({
       if (body.length <= inlineLimit) return body;
 
       const handle = nextHandle(name);
-      objects.set(handle, { text: body, lines: body.split("\n"), origin: "tool" });
+      objects.set(handle, {
+        text: body,
+        lines: body.split("\n"),
+        origin: "tool",
+      });
 
       // Bounded so a long conversation cannot grow without limit; the oldest
       // handle goes first, and a stale handle fails loudly rather than silently
@@ -435,7 +489,11 @@ export function createStore({
         // The point of this tool is that the content does *not* come back into
         // the conversation, so the model is told only that it landed.
         const format = ["markdown", "code", "text"].includes(args.format) ? args.format : "markdown";
-        onDisplay({ content, format, caption: args.caption ? String(args.caption) : null });
+        onDisplay({
+          content,
+          format,
+          caption: args.caption ? String(args.caption) : null,
+        });
         const lines = content.split("\n").length;
         return `Displayed ${lines} line(s) as ${format} to the reader. They can see it; you do not need to repeat it.`;
       }
@@ -454,7 +512,11 @@ export function createStore({
 
         const incoming = String(args.text ?? "").replace(/\r\n?/g, "\n");
         const body = args.append && existing ? `${existing.text}\n${incoming}` : incoming;
-        objects.set(handle, { text: body, lines: body.split("\n"), origin: "model" });
+        objects.set(handle, {
+          text: body,
+          lines: body.split("\n"),
+          origin: "model",
+        });
         while (objects.size > maxObjects) objects.delete(objects.keys().next().value);
 
         const { lines, bytes } = shape(body);

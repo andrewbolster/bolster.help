@@ -9,8 +9,6 @@
 // `SameSite=None; Secure`. Chatting is unaffected, since it uses no cookie.
 const LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 
-export const API_ORIGIN = LOCAL
-  ? "http://127.0.0.1:8788"
-  : "https://bolster-help.andrewbolster.workers.dev";
+export const API_ORIGIN = LOCAL ? "http://127.0.0.1:8788" : "https://bolster-help.andrewbolster.workers.dev";
 
 export const PROXY_ENDPOINT = `${API_ORIGIN}/mcp-proxy`;

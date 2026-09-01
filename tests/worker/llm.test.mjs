@@ -4,11 +4,11 @@
 // refusal. Every case below returns before the provider is contacted; the one
 // case that does reach a provider is skip-gated in integration.test.mjs.
 
-import { describe, it } from "vitest";
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 
 import { allowedLogins, canUseSharedKey, llm } from "../../worker/src/llm.js";
-import { fakeEnv, post, request } from "../helpers.mjs";
+import { post, request } from "../helpers.mjs";
 
 const configured = (overrides = {}) => ({
   LLM_API_KEY: "sk-test",
@@ -30,7 +30,11 @@ describe("allowedLogins", () => {
 
   it("trims, lowercases and drops blanks", () => {
     assert.deepEqual(
-      [...allowedLogins({ GITHUB_ALLOWED_LOGINS: " AndrewBolster , ,octocat " })],
+      [
+        ...allowedLogins({
+          GITHUB_ALLOWED_LOGINS: " AndrewBolster , ,octocat ",
+        }),
+      ],
       ["andrewbolster", "octocat"],
     );
   });
@@ -67,8 +71,7 @@ describe("canUseSharedKey", () => {
 });
 
 describe("/llm", () => {
-  const call = (env, user, payload = body, options) =>
-    llm(post("/llm", payload, options), env, {}, user);
+  const call = (env, user, payload = body, options) => llm(post("/llm", payload, options), env, {}, user);
 
   it("rejects a non-POST before any gate", async () => {
     const response = await llm(request("/llm"), configured(), {}, andrew);

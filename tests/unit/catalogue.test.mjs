@@ -5,11 +5,11 @@
 // allowlist is hand-written on purpose, and fixtures are added by whoever adds
 // a tool. These assertions are where that drift surfaces.
 
-import { describe, it } from "vitest";
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 
 import { ALLOWED_METHODS, ALLOWED_TOOLS } from "../../worker/src/allowlist.js";
-import { snapshot, fixtures } from "../helpers.mjs";
+import { fixtures, snapshot } from "../helpers.mjs";
 
 const upstream = new Set(snapshot.tools.map((t) => t.name));
 
@@ -52,9 +52,7 @@ describe("proxy allowlist", () => {
   // expose anonymously. This test does not fail on that gap — it reports it, so
   // the decision is visible rather than silent.
   it("reports upstream tools awaiting a decision", () => {
-    const undecided = [...upstream].filter(
-      (name) => !ALLOWED_TOOLS.has(name) && !(name in EXCLUDED),
-    );
+    const undecided = [...upstream].filter((name) => !ALLOWED_TOOLS.has(name) && !(name in EXCLUDED));
     for (const name of undecided) console.info(`upstream but not allowlisted: ${name}`);
     assert.equal(
       ALLOWED_TOOLS.size + Object.keys(EXCLUDED).length + undecided.length,

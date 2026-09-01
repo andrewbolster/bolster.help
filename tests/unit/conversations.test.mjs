@@ -4,14 +4,14 @@
 // conversation before the third turn, and what runs on every conversation full
 // stop whenever there is no inference capacity to spare.
 
-import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
+import { beforeEach, describe, it } from "vitest";
 
 import {
-  TITLE_AFTER_TURNS,
   createConversations,
   fitTitle,
   requestTitle,
+  TITLE_AFTER_TURNS,
   titleFromHistory,
 } from "../../web/src/conversations.js";
 
@@ -26,14 +26,19 @@ function fakeStorage(initial = {}) {
 }
 
 const engineReturning = (content) => ({
-  chat: { completions: { create: async () => ({ choices: [{ message: { content } }] }) } },
+  chat: {
+    completions: {
+      create: async () => ({ choices: [{ message: { content } }] }),
+    },
+  },
 });
 
 const turns = (count) =>
   Array.from({ length: count * 2 }, (_, i) =>
     i % 2 === 0
       ? { role: "user", content: `question ${i / 2}` }
-      : { role: "assistant", content: `answer ${(i - 1) / 2}` });
+      : { role: "assistant", content: `answer ${(i - 1) / 2}` },
+  );
 
 describe("fitTitle", () => {
   it("leaves a short title alone", () => {
@@ -97,7 +102,10 @@ describe("createConversations", () => {
     const second = store.create([{ role: "user", content: "two" }]);
     store.save(first.id, [{ role: "user", content: "one again" }]);
 
-    assert.deepEqual(store.list().map((c) => c.id), [first.id, second.id]);
+    assert.deepEqual(
+      store.list().map((c) => c.id),
+      [first.id, second.id],
+    );
   });
 
   it("keeps a renamed title when the messages change", () => {
@@ -130,7 +138,10 @@ describe("createConversations", () => {
     const second = store.create([{ role: "user", content: "two" }]);
     store.remove(first.id);
 
-    assert.deepEqual(store.list().map((c) => c.id), [second.id]);
+    assert.deepEqual(
+      store.list().map((c) => c.id),
+      [second.id],
+    );
     assert.equal(store.get(first.id), null);
   });
 
@@ -150,7 +161,9 @@ describe("createConversations", () => {
 
   // Corrupt storage should cost the history, not the page.
   it("survives unreadable storage", () => {
-    const broken = createConversations({ storage: fakeStorage({ "bolster.help/conversations": "{not json" }) });
+    const broken = createConversations({
+      storage: fakeStorage({ "bolster.help/conversations": "{not json" }),
+    });
     assert.deepEqual(broken.list(), []);
   });
 
@@ -158,7 +171,9 @@ describe("createConversations", () => {
     const full = createConversations({
       storage: {
         getItem: () => null,
-        setItem: () => { throw new Error("QuotaExceededError"); },
+        setItem: () => {
+          throw new Error("QuotaExceededError");
+        },
       },
     });
     assert.doesNotThrow(() => full.create([{ role: "user", content: "q" }]));
@@ -181,7 +196,8 @@ describe("requestTitle", () => {
 
   // A small model asked for a title sometimes writes about writing a title.
   it("declines a reply that is clearly not a title", async () => {
-    const rambling = "Certainly! Here is a short summary of the conversation you have provided above, in 30 characters.";
+    const rambling =
+      "Certainly! Here is a short summary of the conversation you have provided above, in 30 characters.";
     assert.equal(await requestTitle(engineReturning(rambling), turns(3)), null);
   });
 
@@ -195,7 +211,15 @@ describe("requestTitle", () => {
 
   // The whole point of the fallback: no capacity must not mean no title.
   it("propagates a failure for the caller to fall back from", async () => {
-    const dead = { chat: { completions: { create: async () => { throw new Error("free tier exhausted"); } } } };
+    const dead = {
+      chat: {
+        completions: {
+          create: async () => {
+            throw new Error("free tier exhausted");
+          },
+        },
+      },
+    };
     await assert.rejects(() => requestTitle(dead, turns(3)));
   });
 });

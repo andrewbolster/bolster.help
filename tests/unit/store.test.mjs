@@ -5,11 +5,12 @@
 // that a stale or wrong handle fails loudly rather than returning some other
 // table.
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createStore, isStoreTool, STORE_TOOLS } from "../../web/src/store.js";
 
-const csv = (rows) => ["month,sex,births", ...Array.from({ length: rows }, (_, i) => `2006-${i}-01,Persons,${1800 + i}`)].join("\n");
+const csv = (rows) =>
+  ["month,sex,births", ...Array.from({ length: rows }, (_, i) => `2006-${i}-01,Persons,${1800 + i}`)].join("\n");
 
 describe("what reaches the conversation", () => {
   it("passes small output straight through", () => {
@@ -75,13 +76,20 @@ describe("reading stored output", () => {
   };
 
   it("reads a window of lines and says where it is", () => {
-    const out = seeded().call("read_output", { handle: "births#1", start: 3, lines: 2 });
+    const out = seeded().call("read_output", {
+      handle: "births#1",
+      start: 3,
+      lines: 2,
+    });
     expect(out).toMatch(/lines 3-4 of 701/);
     expect(out.split("\n")).toHaveLength(3);
   });
 
   it("defaults to the top and caps the window", () => {
-    const out = seeded().call("read_output", { handle: "births#1", lines: 9999 });
+    const out = seeded().call("read_output", {
+      handle: "births#1",
+      lines: 9999,
+    });
     expect(out).toMatch(/lines 1-200 of 701/);
   });
 
@@ -90,7 +98,10 @@ describe("reading stored output", () => {
   });
 
   it("finds matching lines with their numbers", () => {
-    const out = seeded().call("search_output", { handle: "births#1", pattern: "2006-5-01" });
+    const out = seeded().call("search_output", {
+      handle: "births#1",
+      pattern: "2006-5-01",
+    });
     expect(out).toMatch(/match\(es\)/);
     expect(out).toMatch(/^\d+: 2006-5-01/m);
   });
@@ -102,7 +113,10 @@ describe("reading stored output", () => {
   // A model reaching for regex punctuation should get an answer, not a stack
   // trace, so an uncompilable pattern degrades to a substring search.
   it("falls back to substring search on an invalid regex", () => {
-    const out = seeded().call("search_output", { handle: "births#1", pattern: "births[" });
+    const out = seeded().call("search_output", {
+      handle: "births#1",
+      pattern: "births[",
+    });
     expect(out).toMatch(/No lines|match/);
   });
 });
@@ -139,9 +153,16 @@ describe("partial results announce themselves", () => {
   it("says how many matches were withheld", () => {
     const store = createStore();
     const rows = Array.from({ length: 36 }, (_, i) => `2024-${i}-01,Persons,${2000 + i}`);
-    store.put("births", ["month,sex,births", ...rows, ...Array.from({ length: 700 }, () => "2019-01-01,Persons,1")].join("\n"));
+    store.put(
+      "births",
+      ["month,sex,births", ...rows, ...Array.from({ length: 700 }, () => "2019-01-01,Persons,1")].join("\n"),
+    );
 
-    const out = store.call("search_output", { handle: "births#1", pattern: "^2024", limit: 20 });
+    const out = store.call("search_output", {
+      handle: "births#1",
+      pattern: "^2024",
+      limit: 20,
+    });
     expect(out).toMatch(/Showing 20 of 36 matches/);
     expect(out).toMatch(/raise limit/);
   });
@@ -149,7 +170,10 @@ describe("partial results announce themselves", () => {
   it("does not claim truncation when everything fits", () => {
     const store = createStore();
     store.put("births", ["header", "2024-01-01,Persons,2002", ...Array.from({ length: 700 }, () => "x")].join("\n"));
-    const out = store.call("search_output", { handle: "births#1", pattern: "2024" });
+    const out = store.call("search_output", {
+      handle: "births#1",
+      pattern: "2024",
+    });
     expect(out).toMatch(/1 match\(es\)/);
     expect(out).not.toMatch(/Showing/);
   });
@@ -166,7 +190,13 @@ describe("line endings", () => {
     const read = store.call("read_output", { handle: "t#1", lines: 5 });
     expect(read).not.toMatch(/\r/);
     expect(store.call("search_output", { handle: "t#1", pattern: "2024" })).not.toMatch(/\r/);
-    expect(store.call("aggregate_output", { handle: "t#1", column: "births", op: "count" })).toMatch(/= 120/);
+    expect(
+      store.call("aggregate_output", {
+        handle: "t#1",
+        column: "births",
+        op: "count",
+      }),
+    ).toMatch(/= 120/);
   });
 });
 
@@ -174,8 +204,16 @@ describe("aggregating", () => {
   it("resolves a column by name or by 0-based index the same way", () => {
     const store = createStore();
     store.put("t", csv(700));
-    const byName = store.call("aggregate_output", { handle: "t#1", column: "births", op: "sum" });
-    const byIndex = store.call("aggregate_output", { handle: "t#1", column: "2", op: "sum" });
+    const byName = store.call("aggregate_output", {
+      handle: "t#1",
+      column: "births",
+      op: "sum",
+    });
+    const byIndex = store.call("aggregate_output", {
+      handle: "t#1",
+      column: "2",
+      op: "sum",
+    });
     expect(byName).toBe(byIndex);
   });
 
@@ -214,7 +252,11 @@ describe("aggregating", () => {
     const rowsPerYear = 12 * DAYS.length;
 
     it("groups a date-shaped column by year, not by the exact date", () => {
-      const out = births().call("aggregate_output", { handle: "births#1", column: "births", group_by: "month" });
+      const out = births().call("aggregate_output", {
+        handle: "births#1",
+        column: "births",
+        group_by: "month",
+      });
       expect(out).toMatch(/grouped by "month"/);
       for (const [year, value] of Object.entries(YEAR_VALUE)) {
         expect(out).toMatch(new RegExp(`${year} = ${value * rowsPerYear} \\(${rowsPerYear} rows\\)`));
@@ -235,15 +277,24 @@ describe("aggregating", () => {
       const store = createStore();
       const rows = Array.from({ length: 80 }, (_, i) => `2024-01-01,${i % 2 ? "Male" : "Female"},${i}`);
       store.put("t", ["month,sex,births", ...rows].join("\n"));
-      const out = store.call("aggregate_output", { handle: "t#1", column: "births", group_by: "sex", op: "count" });
+      const out = store.call("aggregate_output", {
+        handle: "t#1",
+        column: "births",
+        group_by: "sex",
+        op: "count",
+      });
       expect(out).toMatch(/Male = 40 \(40 rows\)/);
       expect(out).toMatch(/Female = 40 \(40 rows\)/);
     });
 
     it("names the available columns when group_by does not exist", () => {
-      expect(() => births().call("aggregate_output", { handle: "births#1", column: "births", group_by: "nope" })).toThrow(
-        /No column "nope"\. Columns are: month, sex, births/,
-      );
+      expect(() =>
+        births().call("aggregate_output", {
+          handle: "births#1",
+          column: "births",
+          group_by: "nope",
+        }),
+      ).toThrow(/No column "nope"\. Columns are: month, sex, births/);
     });
   });
 });
@@ -251,13 +302,21 @@ describe("aggregating", () => {
 describe("write_output as working memory", () => {
   const seeded = () => {
     const store = createStore();
-    store.put("bolster_nisra_marriages", ["date,year,marriages", ...Array.from({ length: 120 }, (_, i) => `2024-01-01,2024,${i}`)].join("\n"));
+    store.put(
+      "bolster_nisra_marriages",
+      ["date,year,marriages", ...Array.from({ length: 120 }, (_, i) => `2024-01-01,2024,${i}`)].join("\n"),
+    );
     return store;
   };
 
   it("writes and reads back a note", () => {
     const store = seeded();
-    expect(store.call("write_output", { handle: "notes", text: "2023 total = 7494" })).toMatch(/Wrote notes/);
+    expect(
+      store.call("write_output", {
+        handle: "notes",
+        text: "2023 total = 7494",
+      }),
+    ).toMatch(/Wrote notes/);
     expect(store.call("read_output", { handle: "notes" })).toMatch(/2023 total = 7494/);
   });
 
@@ -283,7 +342,9 @@ describe("write_output as working memory", () => {
   // tool actually said.
   it("refuses to overwrite tool output", () => {
     const store = seeded();
-    expect(() => store.call("write_output", { handle: "nisra_marriages#1", text: "nope" })).toThrow(/cannot be written to/);
+    expect(() => store.call("write_output", { handle: "nisra_marriages#1", text: "nope" })).toThrow(
+      /cannot be written to/,
+    );
     expect(store.call("read_output", { handle: "nisra_marriages#1", lines: 1 })).toMatch(/date,year,marriages/);
   });
 
@@ -298,10 +359,17 @@ describe("display_output goes to the reader, not the context", () => {
     const store = createStore({ onDisplay: (d) => shown.push(d) });
     const table = "| Month | Marriages |\n|---|---|\n| Aug | 1044 |";
 
-    const toModel = store.call("display_output", { content: table, caption: "2024 by month" });
+    const toModel = store.call("display_output", {
+      content: table,
+      caption: "2024 by month",
+    });
 
     expect(shown).toHaveLength(1);
-    expect(shown[0]).toEqual({ content: table, format: "markdown", caption: "2024 by month" });
+    expect(shown[0]).toEqual({
+      content: table,
+      format: "markdown",
+      caption: "2024 by month",
+    });
     // The content itself must not come back — that would defeat the purpose.
     expect(toModel).not.toContain("Marriages");
     expect(toModel).toMatch(/Displayed 3 line\(s\) as markdown/);

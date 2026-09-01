@@ -9,14 +9,13 @@
 // simulator for inference. What those cases check is our branching on the
 // reply — which error code means stop, which means retry — not the model.
 
-import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:workers";
-
-import { checkShape, llm, resolveTier, usage } from "../../worker/src/llm.js";
-import { classify, sanitize, FREE_TIER_MODEL, MAX_OUTPUT_TOKENS } from "../../worker/src/workers-ai.js";
-import { DAILY_NEURONS, resetsAt, utcDay } from "../../worker/src/budget.js";
-import { aiError, chatBody, fakeAI, fakeEnv, post } from "../helpers.mjs";
+import { beforeEach, describe, expect, it } from "vitest";
 import { MAX_ROUNDS } from "../../web/src/agent.js";
+import { DAILY_NEURONS, resetsAt, utcDay } from "../../worker/src/budget.js";
+import { checkShape, llm, resolveTier, usage } from "../../worker/src/llm.js";
+import { classify, FREE_TIER_MODEL, MAX_OUTPUT_TOKENS, sanitize } from "../../worker/src/workers-ai.js";
+import { aiError, chatBody, fakeAI, fakeEnv, post } from "../helpers.mjs";
 
 const andrew = { github_id: 1, login: "andrewbolster" };
 
@@ -29,7 +28,10 @@ const withBudget = (overrides = {}) => {
     stub,
     env: fakeEnv({
       AI: fakeAI(),
-      NEURON_BUDGET: { get: () => stub, idFromName: () => `test-${budgetName}` },
+      NEURON_BUDGET: {
+        get: () => stub,
+        idFromName: () => `test-${budgetName}`,
+      },
       ...overrides,
     }),
   };
@@ -132,7 +134,10 @@ describe("request bounds", () => {
   // rounds sends upwards of 65 messages. A count-based cap here would cut that
   // off partway through and surface as the model mysteriously giving up.
   it("accepts as many messages as a full tool-calling loop produces", () => {
-    const messages = [{ role: "system", content: "s" }, { role: "user", content: "q" }];
+    const messages = [
+      { role: "system", content: "s" },
+      { role: "user", content: "q" },
+    ];
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       messages.push({ role: "assistant", content: "" }, { role: "tool", content: "result" });
     }
@@ -155,7 +160,9 @@ describe("request bounds", () => {
 
 describe("/llm on the free tier", () => {
   it("serves an anonymous visitor and records what it cost", async () => {
-    const { stub, env: environment } = withBudget({ AI: fakeAI({ neurons: 2.5 }) });
+    const { stub, env: environment } = withBudget({
+      AI: fakeAI({ neurons: 2.5 }),
+    });
     const response = await call(environment, null);
 
     expect(response.status).toBe(200);
@@ -192,7 +199,9 @@ describe("Workers AI error handling", () => {
   // 429 covers two conditions needing opposite responses: 3036 cannot be
   // retried before midnight UTC, 3040 should be retried immediately.
   it("latches the budget when Cloudflare reports the allocation gone", async () => {
-    const { stub, env: environment } = withBudget({ AI: fakeAI({ throws: aiError(3036) }) });
+    const { stub, env: environment } = withBudget({
+      AI: fakeAI({ throws: aiError(3036) }),
+    });
     const response = await call(environment, null);
 
     expect(response.status).toBe(429);
@@ -200,7 +209,9 @@ describe("Workers AI error handling", () => {
   });
 
   it("treats out-of-capacity as retryable and does not burn the day", async () => {
-    const { stub, env: environment } = withBudget({ AI: fakeAI({ throws: aiError(3040) }) });
+    const { stub, env: environment } = withBudget({
+      AI: fakeAI({ throws: aiError(3040) }),
+    });
     const response = await call(environment, null);
 
     expect(response.status).toBe(503);
@@ -210,7 +221,9 @@ describe("Workers AI error handling", () => {
 
   it("distinguishes a deploy mistake from a visitor's problem", async () => {
     // 5035 means the pinned model needs a paid plan — nothing the caller did.
-    const { env: environment } = withBudget({ AI: fakeAI({ throws: aiError(5035) }) });
+    const { env: environment } = withBudget({
+      AI: fakeAI({ throws: aiError(5035) }),
+    });
     const response = await call(environment, null);
     expect(response.status).toBe(500);
     expect((await response.json()).error).toMatch(/misconfigured/);
@@ -270,7 +283,9 @@ describe("failures say why", () => {
   // budget on zero real spend. An unrecognised code must never touch it.
   it("does not latch the budget on an unrecognised code, even exhaustion-sounding text", async () => {
     const { stub, env: environment } = withBudget({
-      AI: fakeAI({ throws: Object.assign(new Error("quota exceeded"), { code: 4006 }) }),
+      AI: fakeAI({
+        throws: Object.assign(new Error("quota exceeded"), { code: 4006 }),
+      }),
     });
     const response = await call(environment, null);
 
@@ -295,9 +310,19 @@ describe("assistant message sanitising", () => {
   // beside tool_calls — so replaying a turn verbatim fails with 5006.
   it("coerces null content to a string and drops the model's extra nulls", () => {
     const [clean] = sanitize([
-      { role: "assistant", content: null, refusal: null, reasoning: null, tool_calls: [{ id: "c1" }] },
+      {
+        role: "assistant",
+        content: null,
+        refusal: null,
+        reasoning: null,
+        tool_calls: [{ id: "c1" }],
+      },
     ]);
-    expect(clean).toEqual({ role: "assistant", content: "", tool_calls: [{ id: "c1" }] });
+    expect(clean).toEqual({
+      role: "assistant",
+      content: "",
+      tool_calls: [{ id: "c1" }],
+    });
   });
 
   it("leaves system, user and tool messages untouched", () => {

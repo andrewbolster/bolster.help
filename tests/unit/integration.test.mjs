@@ -11,8 +11,8 @@
 //   GITHUB_CLIENT_ID / _SECRET           OAuth round-trip
 //   LLM_BASE_URL / LLM_API_KEY           inference on a real provider
 
-import { describe, it } from "vitest";
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 
 import { ALLOWED_TOOLS } from "../../worker/src/allowlist.js";
 import {
@@ -84,7 +84,10 @@ describe("the MCP origin", () => {
   gate(it, needsNetwork)("sends no CORS headers, which is why the proxy is mandatory", async () => {
     const response = await fetch(mcpOrigin, {
       method: "OPTIONS",
-      headers: { origin: "https://bolster.help", "access-control-request-method": "POST" },
+      headers: {
+        origin: "https://bolster.help",
+        "access-control-request-method": "POST",
+      },
     });
     assert.equal(
       response.headers.get("access-control-allow-origin"),

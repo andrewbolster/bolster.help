@@ -37,12 +37,17 @@ export const DOCUMENTATION_TOOL = {
   function: {
     name: "full_tool_documentation",
     description:
-      "Read the complete documentation for a tool — its arguments, worked examples and notes about the data. "
-      + "The descriptions you were given are abridged; use this when you need to know exactly what a tool accepts "
-      + "or how its output is structured.",
+      "Read the complete documentation for a tool — its arguments, worked examples and notes about the data. " +
+      "The descriptions you were given are abridged; use this when you need to know exactly what a tool accepts " +
+      "or how its output is structured.",
     parameters: {
       type: "object",
-      properties: { tool: { type: "string", description: "Name of the tool, e.g. bolster_nisra_births" } },
+      properties: {
+        tool: {
+          type: "string",
+          description: "Name of the tool, e.g. bolster_nisra_births",
+        },
+      },
       required: ["tool"],
     },
   },

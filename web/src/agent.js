@@ -1,7 +1,7 @@
 // The tool-calling loop.
 
-import { SYSTEM_PROMPT } from "./persona.js";
 import { DOCUMENTATION_TOOL, isDocumentationTool, lookupDocumentation, toToolSchemas } from "./catalogue.js";
+import { SYSTEM_PROMPT } from "./persona.js";
 import { createStore, isStoreTool } from "./store.js";
 
 export { SYSTEM_PROMPT };
@@ -41,7 +41,11 @@ export function createAgent({ tools, engine, mcp, store }) {
   // than fetching it again. Displays are routed to whichever turn is running,
   // since the listener arrives per call rather than per conversation.
   let emit = () => {};
-  const active = store ?? createStore({ onDisplay: (display) => emit({ type: "display", ...display }) });
+  const active =
+    store ??
+    createStore({
+      onDisplay: (display) => emit({ type: "display", ...display }),
+    });
 
   // Attached to the returned function rather than taken as a parameter: the
   // store belongs to the agent, and a caller resetting a conversation should
@@ -52,11 +56,7 @@ export function createAgent({ tools, engine, mcp, store }) {
   async function run(history, userMessage, { onEvent = () => {}, signal } = {}) {
     emit = onEvent;
 
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...history,
-      { role: "user", content: userMessage },
-    ];
+    const messages = [{ role: "system", content: SYSTEM_PROMPT }, ...history, { role: "user", content: userMessage }];
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       const reply = await engine.chat.completions.create({

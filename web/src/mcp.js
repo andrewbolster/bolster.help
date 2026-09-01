@@ -45,7 +45,9 @@ export class McpClient {
       capabilities: {},
       clientInfo: { name: "bolster.help", version: "0.1.0" },
     });
-    await this.#rpc("notifications/initialized", undefined, { notification: true });
+    await this.#rpc("notifications/initialized", undefined, {
+      notification: true,
+    });
     return result;
   }
 

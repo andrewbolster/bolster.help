@@ -1,17 +1,24 @@
 import { createAgent } from "./agent.js";
-import { McpClient } from "./mcp.js";
-import { createProxyEngine } from "./providers.js";
 import { API_ORIGIN, PROXY_ENDPOINT } from "./config.js";
-import { renderMarkdown } from "./markdown.js";
 import { createConversations, requestTitle } from "./conversations.js";
 import { download, exportFilename, toJSON, toMarkdown } from "./export.js";
+import { renderMarkdown } from "./markdown.js";
+import { McpClient } from "./mcp.js";
+import { createProxyEngine } from "./providers.js";
 
 const el = (id) => document.getElementById(id);
 
 // There is no setup step. Inference runs on the deployment's own allocation, so
 // a visitor has nothing to configure and nothing to bring — the page is the
 // chat. Signing in adds one thing: somewhere to keep the conversation.
-const state = { chatId: null, user: null, budget: null, agent: null, conversationId: null, pendingAbort: null };
+const state = {
+  chatId: null,
+  user: null,
+  budget: null,
+  agent: null,
+  conversationId: null,
+  pendingAbort: null,
+};
 
 const conversations = createConversations();
 
@@ -86,7 +93,8 @@ function render(transcript, history) {
           const output = document.createElement("details");
           output.className = "call-output";
           const outputLabel = document.createElement("summary");
-          outputLabel.textContent = call.result === undefined ? "no result" : `output — ${String(call.result).length} characters`;
+          outputLabel.textContent =
+            call.result === undefined ? "no result" : `output — ${String(call.result).length} characters`;
           output.append(outputLabel);
           const pre = document.createElement("pre");
           pre.textContent = call.result ?? "";
@@ -129,7 +137,10 @@ function renderBudget() {
   bar.className = budget.exhausted ? "spent" : used > 0.8 ? "low" : "";
   el("budget-fill").style.width = `${Math.max(used * 100, 1)}%`;
 
-  const resets = new Date(budget.resetsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const resets = new Date(budget.resetsAt).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
   // When capacity is gone the bar shows full rather than whatever fraction we
   // last counted: our tally only sees what came through here, and the
   // allocation is the whole account's.
@@ -141,7 +152,9 @@ function renderBudget() {
 
 async function refreshAccount() {
   try {
-    const response = await fetch(`${API_ORIGIN}/me`, { credentials: "include" });
+    const response = await fetch(`${API_ORIGIN}/me`, {
+      credentials: "include",
+    });
     if (!response.ok) return;
     state.user = await response.json();
     el("signin").hidden = true;
@@ -157,7 +170,8 @@ async function refreshAccount() {
 // What to tell someone when a turn fails. The distinction that matters is
 // whether waiting helps, whether retrying helps, or whether neither does.
 const FAILURES = {
-  exhausted: "That's today's free capacity used up. It resets at midnight UTC — or sign in and bring your own model later.",
+  exhausted:
+    "That's today's free capacity used up. It resets at midnight UTC — or sign in and bring your own model later.",
   busy: "The model is busy. Worth trying that again in a moment.",
   misconfigured: "Something is misconfigured at my end — this one needs Andrew rather than another attempt.",
   too_long: "This conversation has got too long for the model to hold. Start a new one and it'll have room again.",
@@ -242,7 +256,11 @@ async function maybeTitle(history) {
 }
 
 const RELATIVE = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-const SPANS = [["day", 86_400_000], ["hour", 3_600_000], ["minute", 60_000]];
+const SPANS = [
+  ["day", 86_400_000],
+  ["hour", 3_600_000],
+  ["minute", 60_000],
+];
 
 function whenever(ms) {
   const elapsed = Date.now() - ms;
@@ -371,9 +389,10 @@ function runExport(dialog) {
   const format = dialog.querySelector('input[name="format"]:checked').value;
   const includeToolCalls = el("include-calls").checked;
 
-  const [text, type] = format === "json"
-    ? [toJSON(conversation, { includeToolCalls }), "application/json"]
-    : [toMarkdown(conversation, { includeToolCalls }), "text/markdown"];
+  const [text, type] =
+    format === "json"
+      ? [toJSON(conversation, { includeToolCalls }), "application/json"]
+      : [toMarkdown(conversation, { includeToolCalls }), "text/markdown"];
 
   download(text, exportFilename(conversation, format === "json" ? "json" : "md"), type);
 }
@@ -579,7 +598,11 @@ export function main() {
             history.splice(history.length - 1, 0, {
               role: "assistant",
               content: "",
-              display: { content: e.content, format: e.format, caption: e.caption },
+              display: {
+                content: e.content,
+                format: e.format,
+                caption: e.caption,
+              },
             });
             render(transcript, history);
           }

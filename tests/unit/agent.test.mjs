@@ -6,11 +6,11 @@
 // model actually picks is a property of the model, not of this code, and is not
 // asserted here.
 
-import { describe, it } from "vitest";
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 
 import { createAgent } from "../../web/src/agent.js";
-import { snapshot, fixtures } from "../helpers.mjs";
+import { snapshot } from "../helpers.mjs";
 
 // A stand-in for the provider: replays queued replies and records the tool
 // schemas it was handed each round.
@@ -26,7 +26,16 @@ function scriptedEngine(replies) {
         create: async ({ tools, signal }) => {
           seen.push(tools);
           signals.push(signal);
-          return { choices: [{ message: queue.shift() ?? { content: "fallback", tool_calls: [] } }] };
+          return {
+            choices: [
+              {
+                message: queue.shift() ?? {
+                  content: "fallback",
+                  tool_calls: [],
+                },
+              },
+            ],
+          };
         },
       },
     },
@@ -89,10 +98,7 @@ describe("agent loop", () => {
   });
 
   it("degrades a JSON array of arguments to an empty object", async () => {
-    const engine = scriptedEngine([
-      call("bolster_nisra_births", "[1,2,3]"),
-      { content: "Done.", tool_calls: [] },
-    ]);
+    const engine = scriptedEngine([call("bolster_nisra_births", "[1,2,3]"), { content: "Done.", tool_calls: [] }]);
     const seen = [];
     await agentWith(engine, {
       callTool: async (_name, args) => {
@@ -137,7 +143,9 @@ describe("agent loop", () => {
   // press on into the next round the way a normal failure does.
   it("propagates a cancelled tool call instead of reporting it as a failure", async () => {
     const engine = scriptedEngine([call("bolster_water_quality", "{}")]);
-    const abortError = Object.assign(new Error("The operation was aborted."), { name: "AbortError" });
+    const abortError = Object.assign(new Error("The operation was aborted."), {
+      name: "AbortError",
+    });
     const controller = new AbortController();
 
     await assert.rejects(
@@ -151,10 +159,7 @@ describe("agent loop", () => {
   });
 
   it("passes the abort signal to both the engine and the MCP client", async () => {
-    const engine = scriptedEngine([
-      call("bolster_water_quality", "{}"),
-      { content: "Here you go.", tool_calls: [] },
-    ]);
+    const engine = scriptedEngine([call("bolster_water_quality", "{}"), { content: "Here you go.", tool_calls: [] }]);
     const controller = new AbortController();
     const mcpSignals = [];
 
@@ -193,8 +198,13 @@ describe("agent loop", () => {
     await agentWith(engine, ok)([], "how many births were registered last year?");
 
     const ours = new Set([
-      "read_output", "search_output", "aggregate_output",
-      "calculate", "write_output", "display_output", "full_tool_documentation",
+      "read_output",
+      "search_output",
+      "aggregate_output",
+      "calculate",
+      "write_output",
+      "display_output",
+      "full_tool_documentation",
     ]);
     const sent = engine.seen[0];
     const fromCatalogue = sent.filter((tool) => !ours.has(tool.function.name));
@@ -215,7 +225,12 @@ describe("agent loop", () => {
       { content: "read it", tool_calls: [] },
     ]);
     let reached = false;
-    const out = await agentWith(engine, { callTool: async () => { reached = true; return "x"; } })([], "what does births take?");
+    const out = await agentWith(engine, {
+      callTool: async () => {
+        reached = true;
+        return "x";
+      },
+    })([], "what does births take?");
     assert.equal(reached, false, "documentation is local; it must not hit the proxy");
     assert.match(out.messages.find((m) => m.role === "tool").content, /Examples:/);
   });
@@ -233,12 +248,11 @@ describe("agent loop", () => {
   });
 
   it("emits tool, result and answer events in order", async () => {
-    const engine = scriptedEngine([
-      call("bolster_nisra_births", "{}"),
-      { content: "done", tool_calls: [] },
-    ]);
+    const engine = scriptedEngine([call("bolster_nisra_births", "{}"), { content: "done", tool_calls: [] }]);
     const types = [];
-    await agentWith(engine, ok)([], "births", { onEvent: (e) => types.push(e.type) });
+    await agentWith(engine, ok)([], "births", {
+      onEvent: (e) => types.push(e.type),
+    });
     assert.deepEqual(types, ["tool", "result", "answer"]);
   });
 });
@@ -247,10 +261,18 @@ describe("agent loop", () => {
 // budget to keep: granite has a 131K context and the whole thing is ~19K.
 describe("catalogue size", () => {
   it("reports what sending everything costs", () => {
-    const tokens = Math.ceil(JSON.stringify(snapshot.tools.map((t) => ({
-      type: "function",
-      function: { name: t.name, description: t.description, parameters: t.inputSchema },
-    }))).length / 4);
+    const tokens = Math.ceil(
+      JSON.stringify(
+        snapshot.tools.map((t) => ({
+          type: "function",
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.inputSchema,
+          },
+        })),
+      ).length / 4,
+    );
     console.info(`all ${snapshot.tools.length} tools with full descriptions: ~${tokens} tokens`);
     assert.ok(tokens < 100_000, `catalogue is ${tokens} tokens, past a 131K context`);
   });

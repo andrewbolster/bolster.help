@@ -3,8 +3,8 @@
 // The toggle is the point: the same conversation has to come out readable when
 // the calls are hidden and complete when they are shown.
 
-import { describe, it } from "vitest";
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 
 import { exportFilename, toJSON, toMarkdown } from "../../web/src/export.js";
 
@@ -19,7 +19,11 @@ const conversation = {
       role: "assistant",
       content: "7,251 in 2024.",
       calls: [
-        { name: "bolster_nisra_marriages", args: { year: 2024 }, result: "date,marriages\n2024-01,432" },
+        {
+          name: "bolster_nisra_marriages",
+          args: { year: 2024 },
+          result: "date,marriages\n2024-01,432",
+        },
       ],
     },
   ],
@@ -61,7 +65,13 @@ describe("toMarkdown", () => {
   it("counts more than one call correctly", () => {
     const two = {
       ...conversation,
-      messages: [{ role: "assistant", content: "ok", calls: [{ name: "a" }, { name: "b" }] }],
+      messages: [
+        {
+          role: "assistant",
+          content: "ok",
+          calls: [{ name: "a" }, { name: "b" }],
+        },
+      ],
     };
     assert.match(toMarkdown(two, { includeToolCalls: true }), /<summary>2 tool calls<\/summary>/);
   });
@@ -71,7 +81,13 @@ describe("toMarkdown", () => {
   it("keeps displayed output", () => {
     const shown = {
       ...conversation,
-      messages: [{ role: "assistant", content: "", display: { content: "| a |\n| - |", caption: "Tools" } }],
+      messages: [
+        {
+          role: "assistant",
+          content: "",
+          display: { content: "| a |\n| - |", caption: "Tools" },
+        },
+      ],
     };
     const text = toMarkdown(shown);
     assert.match(text, /\*\*Tools\*\*/);
@@ -79,7 +95,11 @@ describe("toMarkdown", () => {
   });
 
   it("handles a conversation with nothing in it", () => {
-    const text = toMarkdown({ title: "Empty", createdAt: Date.UTC(2026, 0, 1), messages: [] });
+    const text = toMarkdown({
+      title: "Empty",
+      createdAt: Date.UTC(2026, 0, 1),
+      messages: [],
+    });
     assert.ok(text.startsWith("# Empty"));
   });
 });

@@ -29,7 +29,9 @@ const id = () => `c${now().toString(36)}${Math.random().toString(36).slice(2, 7)
 
 /** Trim to something that fits a sidebar row, breaking on a word where it can. */
 export function fitTitle(text, limit = MAX_TITLE) {
-  const clean = String(text ?? "").replace(/\s+/g, " ").trim();
+  const clean = String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!clean) return "New conversation";
   if (clean.length <= limit) return clean;
 
@@ -39,8 +41,7 @@ export function fitTitle(text, limit = MAX_TITLE) {
 }
 
 /** The fallback title: the first thing the person asked. */
-export const titleFromHistory = (messages) =>
-  fitTitle(messages.find((m) => m.role === "user")?.content ?? "");
+export const titleFromHistory = (messages) => fitTitle(messages.find((m) => m.role === "user")?.content ?? "");
 
 export function createConversations({ storage = localStorage } = {}) {
   const read = () => {
@@ -153,8 +154,8 @@ export function createConversations({ storage = localStorage } = {}) {
 // here — no capacity, a refusal, a model that answers with a paragraph — just
 // leaves that title in place. Nothing surfaces to the visitor either way.
 const TITLE_INSTRUCTION =
-  "Summarise what this conversation is about in at most 30 characters. "
-  + "Reply with the summary alone: no quotes, no full stop, no preamble.";
+  "Summarise what this conversation is about in at most 30 characters. " +
+  "Reply with the summary alone: no quotes, no full stop, no preamble.";
 
 export async function requestTitle(engine, messages) {
   const exchange = messages
@@ -175,7 +176,9 @@ export async function requestTitle(engine, messages) {
   // A quoted title ends up quoted *and* punctuated — "Marriage figures." —
   // so one pass strips the quote and leaves the full stop behind it. Peel
   // until nothing more comes off.
-  let raw = String(reply?.choices?.[0]?.message?.content ?? "").trim().split("\n")[0];
+  let raw = String(reply?.choices?.[0]?.message?.content ?? "")
+    .trim()
+    .split("\n")[0];
   for (let peeled = ""; peeled !== raw; ) {
     peeled = raw;
     raw = raw.replace(/^["'`*_]+|["'`*_.,;:]+$/g, "").trim();

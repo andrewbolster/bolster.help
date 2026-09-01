@@ -26,7 +26,9 @@ const cells = (line) =>
 
 /** Split text into block tokens. */
 export function parseMarkdown(text) {
-  const lines = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
+  const lines = String(text ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n");
   const blocks = [];
   let index = 0;
 
@@ -46,7 +48,11 @@ export function parseMarkdown(text) {
       index += 1;
       while (index < lines.length && !FENCE.test(lines[index])) body.push(lines[index++]);
       index += 1;
-      blocks.push({ type: "code", language: fence[1] || null, text: body.join("\n") });
+      blocks.push({
+        type: "code",
+        language: fence[1] || null,
+        text: body.join("\n"),
+      });
       continue;
     }
 
@@ -66,7 +72,11 @@ export function parseMarkdown(text) {
     const heading = line.match(HEADING);
     if (heading) {
       paragraph = flush(paragraph);
-      blocks.push({ type: "heading", level: heading[1].length, text: heading[2].trim() });
+      blocks.push({
+        type: "heading",
+        level: heading[1].length,
+        text: heading[2].trim(),
+      });
       index += 1;
       continue;
     }
@@ -78,7 +88,8 @@ export function parseMarkdown(text) {
       const header = cells(line);
       const rows = [];
       index += 2;
-      while (index < lines.length && lines[index].includes("|") && lines[index].trim()) rows.push(cells(lines[index++]));
+      while (index < lines.length && lines[index].includes("|") && lines[index].trim())
+        rows.push(cells(lines[index++]));
       blocks.push({ type: "table", header, rows });
       continue;
     }

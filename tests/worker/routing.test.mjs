@@ -5,13 +5,18 @@
 // integration.test.mjs, skip-gated, so nothing green here implies a working hop
 // to mcp.bolster.online.
 
-import { describe, it } from "vitest";
 import assert from "node:assert/strict";
+import { describe, it } from "vitest";
 
 import worker from "../../worker/src/index.js";
 import { fakeEnv, post, request, withSession } from "../helpers.mjs";
 
-const rpc = (method, params) => ({ jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) });
+const rpc = (method, params) => ({
+  jsonrpc: "2.0",
+  id: 1,
+  method,
+  ...(params ? { params } : {}),
+});
 const callTool = (name) => rpc("tools/call", { name, arguments: {} });
 
 const proxy = (body, options) => worker.fetch(post("/mcp-proxy", body, options), fakeEnv());
@@ -25,10 +30,7 @@ describe("CORS", () => {
   });
 
   it("echoes an allowlisted origin", async () => {
-    const response = await worker.fetch(
-      request("/nope", { origin: "http://localhost:5173" }),
-      fakeEnv(),
-    );
+    const response = await worker.fetch(request("/nope", { origin: "http://localhost:5173" }), fakeEnv());
     assert.equal(response.headers.get("access-control-allow-origin"), "http://localhost:5173");
   });
 
@@ -36,10 +38,7 @@ describe("CORS", () => {
   // preview deployments and admitted anyone's Pages site once we stopped using
   // them.
   it("does not admit a pages.dev origin", async () => {
-    const response = await worker.fetch(
-      request("/nope", { origin: "https://abc-123.pages.dev" }),
-      fakeEnv(),
-    );
+    const response = await worker.fetch(request("/nope", { origin: "https://abc-123.pages.dev" }), fakeEnv());
     assert.equal(response.headers.get("access-control-allow-origin"), "https://bolster.help");
   });
 
@@ -130,7 +129,10 @@ describe("/me", () => {
     const response = await worker.fetch(request("/me", { headers: { cookie } }), env);
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { login: "octocat", sharedKey: false });
+    assert.deepEqual(await response.json(), {
+      login: "octocat",
+      sharedKey: false,
+    });
   });
 
   it("advertises the shared key only to an allowlisted login", async () => {
