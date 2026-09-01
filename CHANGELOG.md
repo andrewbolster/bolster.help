@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-09-01
+
+- ci: add Biome + pre-commit + gitleaks — first lint tooling in this repo
+
+
 ## [0.1.2] - 2026-09-01
 
 - feat: multi-line composer input + cancel an in-flight turn (#24)
