@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.4] - 2026-09-03
+
+- fix: MCP_ORIGIN needs a trailing slash after the /auth/mcp Mount refactor (#26)
+
+
 ## [0.1.3] - 2026-09-01
 
 - ci: add Biome + pre-commit + gitleaks — first lint tooling in this repo
