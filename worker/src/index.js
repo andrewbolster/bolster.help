@@ -84,7 +84,7 @@ async function proxy(request, env, headers) {
   const started = Date.now();
 
   const session = request.headers.get("mcp-session-id");
-  const upstream = await fetch(env.MCP_ORIGIN ?? "https://mcp.bolster.online/mcp", {
+  const upstream = await fetch(env.MCP_ORIGIN ?? "https://mcp.bolster.online/mcp/", {
     method: "POST",
     headers: {
       "content-type": "application/json",

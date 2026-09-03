@@ -11,7 +11,7 @@ account_id = "1a929e6f9bfe075e1a8dd9f9003497d1"
 enabled = true
 
 [vars]
-MCP_ORIGIN = "https://mcp.bolster.online/mcp"
+MCP_ORIGIN = "https://mcp.bolster.online/mcp/"
 ALLOWED_ORIGINS = "https://bolster.help,https://www.bolster.help,http://localhost:5173"
 
 # Who may spend the deployment's own LLM credentials. Empty means nobody, which

@@ -21,7 +21,7 @@ main = "src/index.js"
 compatibility_date = "2026-05-01"
 
 [vars]
-MCP_ORIGIN = "https://mcp.bolster.online/mcp"
+MCP_ORIGIN = "https://mcp.bolster.online/mcp/"
 ALLOWED_ORIGINS = "https://bolster.help,http://localhost:5173"
 GITHUB_ALLOWED_LOGINS = "andrewbolster"
 WORKERS_AI_MODEL = "@cf/ibm-granite/granite-4.0-h-micro"
