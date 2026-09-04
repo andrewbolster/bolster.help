@@ -262,7 +262,11 @@ describe("agent loop", () => {
     it("tells the model today's date in Europe/London terms", async () => {
       const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
       const out = await agentWith(engine, ok)([], "hi");
-      assert.match(out.messages[0].content, /Wednesday 9 September 2026/);
+      // Optional comma: Intl.DateTimeFormat's dateStyle: "full" output for
+      // en-GB varies by ICU version — some (including a CI runner observed
+      // live) render "Wednesday, 9 September 2026", others "Wednesday 9
+      // September 2026". The code doesn't care which; the test shouldn't either.
+      assert.match(out.messages[0].content, /Wednesday,? 9 September 2026/);
       assert.match(out.messages[0].content, /2026-09-09/);
     });
 
