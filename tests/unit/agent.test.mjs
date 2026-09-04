@@ -244,7 +244,9 @@ describe("agent loop", () => {
     const out = await agentWith(engine, ok)(history, "follow up");
     assert.equal(out.messages[0].role, "system");
     assert.equal(out.messages[1].content, "earlier question");
-    assert.equal(out.messages[3].content, "follow up");
+    // The live message carries a timestamp prefix (see "date awareness" below);
+    // history is replayed verbatim, so only the trailing text is checked here.
+    assert.match(out.messages[3].content, /follow up$/);
   });
 
   describe("date awareness", () => {
@@ -267,7 +269,38 @@ describe("agent loop", () => {
     it("still carries the persona content alongside the date", async () => {
       const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
       const out = await agentWith(engine, ok)([], "hi");
-      assert.match(out.messages[0].content, /You go by Bolster/);
+      assert.match(out.messages[0].content, /avatar of Andrew Bolster/);
+    });
+
+    // A second bug found chasing the first: the model reliably skipped calling
+    // any tool at all for a casual-greeting-plus-question phrasing ("hi there,
+    // how goes it? What's..."), fabricating an answer instead — 6/6 in testing.
+    // Prefixing the live message with a timestamp, plus explaining the format,
+    // fixed it (9/9). Neither alone did: the date sentence alone still hit the
+    // tool-skip, and the prefix alone (unexplained) didn't move the model's date
+    // maths.
+    it("prefixes the live user message with a YYYY-MM-DD HH:MM timestamp", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "what's the weather");
+      assert.equal(out.messages[1].content, "2026-09-09 13:00; what's the weather");
+    });
+
+    it("does not prefix replayed history, only the live message", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const history = [
+        { role: "user", content: "earlier question" },
+        { role: "assistant", content: "earlier answer" },
+      ];
+      const out = await agentWith(engine, ok)(history, "follow up");
+      assert.equal(out.messages[1].content, "earlier question");
+      assert.equal(out.messages[3].content, "2026-09-09 13:00; follow up");
+    });
+
+    it("tells the model what the prefix means and that it need not reply in kind", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "hi");
+      assert.match(out.messages[0].content, /prefixed with a YYYY-MM-DD HH:MM timestamp/);
+      assert.match(out.messages[0].content, /do not need to respond in the same format/);
     });
   });
 

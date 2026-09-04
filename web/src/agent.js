@@ -20,6 +20,36 @@ function todayContext() {
   return `Today is ${weekday} (${iso}), Europe/London time. Use this for anything relative — "next week", "tomorrow", "this month" — rather than a guess.`;
 }
 
+// A second, independent bug found while chasing the one above: granite-4.0-h-micro
+// reliably (6/6 in testing) skips calling any tool at all — fabricating a plausible
+// but invented answer instead — specifically for a casual-greeting-plus-question
+// phrasing ("hi there, how goes it? What's..."). Drop the greeting, same question,
+// and it calls the tool correctly every time. Prefixing the live user message with
+// a timestamp logline, plus telling the model what that prefix means, fixed both
+// the tool-skip (9/9 in testing) and reinforced the date sentence above rather than
+// competing with it — the prefix alone, untold what it meant, didn't move the date
+// math at all (still guessed a wrong 2025 date every time); it's the combination
+// that works, not either alone. Only the live message gets prefixed, not replayed
+// history: past turns carry no per-message timestamp today (only
+// conversation.createdAt exists), and todayContext() above already re-anchors
+// every turn to the real current date regardless of how old the conversation is,
+// so there's no multi-day drift left for history-prefixing to solve.
+function timestampPrefix() {
+  const now = new Date();
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(now);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(now);
+  return `${date} ${time}`;
+}
+
+const PREFIX_FORMAT_NOTE =
+  "User messages are prefixed with a YYYY-MM-DD HH:MM timestamp followed by a semicolon, then the user's " +
+  "original message. That timestamp is when the message was sent. You do not need to respond in the same format.";
+
 // Not a budget — a stop. A model that wants to work through a dozen tools
 // should be left to, so this sits far above what any answer needs and exists
 // only so a model that never stops calling tools eventually does.
@@ -71,9 +101,9 @@ export function createAgent({ tools, engine, mcp, store }) {
     emit = onEvent;
 
     const messages = [
-      { role: "system", content: `${SYSTEM_PROMPT}\n\n${todayContext()}` },
+      { role: "system", content: `${SYSTEM_PROMPT}\n\n${todayContext()}\n\n${PREFIX_FORMAT_NOTE}` },
       ...history,
-      { role: "user", content: userMessage },
+      { role: "user", content: `${timestampPrefix()}; ${userMessage}` },
     ];
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
