@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.5] - 2026-09-04
+
+- fix: notification-shadowing, one-shot tool-calling, and persona/UI polish (#28)
+
+
 ## [0.1.4] - 2026-09-03
 
 - fix: MCP_ORIGIN needs a trailing slash after the /auth/mcp Mount refactor (#26)
