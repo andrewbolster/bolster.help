@@ -6,6 +6,20 @@ import { createStore, isStoreTool } from "./store.js";
 
 export { SYSTEM_PROMPT };
 
+// Observed live: asked "what's Andrew's availability next week", the model
+// picked a start_date over a year in the past — nothing in its context said
+// what day it actually is, so it fell back to a guess. Computed fresh per
+// turn rather than folded into the static SYSTEM_PROMPT string, and anchored
+// to Europe/London (Andrew's timezone, and check_availability's default)
+// rather than the visitor's browser clock, so "next week" means the same
+// week regardless of where the visitor is.
+function todayContext() {
+  const now = new Date();
+  const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", dateStyle: "full" }).format(now);
+  const iso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(now);
+  return `Today is ${weekday} (${iso}), Europe/London time. Use this for anything relative — "next week", "tomorrow", "this month" — rather than a guess.`;
+}
+
 // Not a budget — a stop. A model that wants to work through a dozen tools
 // should be left to, so this sits far above what any answer needs and exists
 // only so a model that never stops calling tools eventually does.
@@ -56,7 +70,11 @@ export function createAgent({ tools, engine, mcp, store }) {
   async function run(history, userMessage, { onEvent = () => {}, signal } = {}) {
     emit = onEvent;
 
-    const messages = [{ role: "system", content: SYSTEM_PROMPT }, ...history, { role: "user", content: userMessage }];
+    const messages = [
+      { role: "system", content: `${SYSTEM_PROMPT}\n\n${todayContext()}` },
+      ...history,
+      { role: "user", content: userMessage },
+    ];
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       const reply = await engine.chat.completions.create({

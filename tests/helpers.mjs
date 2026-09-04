@@ -109,7 +109,12 @@ export const needsProvider =
     : "LLM_BASE_URL and LLM_API_KEY — spends real credit on a real provider";
 
 // Usage: const online = gate(it, needsNetwork); online("does X", async () => {})
-export const gate = (it, reason) => (title, fn) => (reason ? it.skip(`${title} — needs ${reason}`, fn) : it(title, fn));
+// Extra args (e.g. a timeout) pass through to `it`/`it.skip` unchanged, same
+// as vitest's own `it(name, fn, timeout)`.
+export const gate =
+  (it, reason) =>
+  (title, fn, ...rest) =>
+    reason ? it.skip(`${title} — needs ${reason}`, fn, ...rest) : it(title, fn, ...rest);
 
 export const deployedOrigin = environment.CHECK_DEPLOYED?.replace(/\/+$/, "");
-export const mcpOrigin = environment.MCP_ORIGIN ?? "https://mcp.bolster.online/mcp";
+export const mcpOrigin = environment.MCP_ORIGIN ?? "https://mcp.bolster.online/mcp/";

@@ -7,7 +7,7 @@
 // asserted here.
 
 import assert from "node:assert/strict";
-import { describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 
 import { createAgent } from "../../web/src/agent.js";
 import { snapshot } from "../helpers.mjs";
@@ -245,6 +245,30 @@ describe("agent loop", () => {
     assert.equal(out.messages[0].role, "system");
     assert.equal(out.messages[1].content, "earlier question");
     assert.equal(out.messages[3].content, "follow up");
+  });
+
+  describe("date awareness", () => {
+    // Observed live: asked for "next week", the model picked a start_date
+    // over a year in the past — nothing told it what day it actually was.
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // A Wednesday, so weekday and date can't accidentally agree by luck.
+      vi.setSystemTime(new Date("2026-09-09T12:00:00Z"));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("tells the model today's date in Europe/London terms", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "hi");
+      assert.match(out.messages[0].content, /Wednesday 9 September 2026/);
+      assert.match(out.messages[0].content, /2026-09-09/);
+    });
+
+    it("still carries the persona content alongside the date", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "hi");
+      assert.match(out.messages[0].content, /You go by Bolster/);
+    });
   });
 
   it("emits tool, result and answer events in order", async () => {

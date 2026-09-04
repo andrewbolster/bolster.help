@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
 import { ALLOWED_TOOLS } from "../../worker/src/allowlist.js";
+import { parseUpstream } from "../../worker/src/sse.js";
 import {
   deployedOrigin,
   gate,
@@ -28,15 +29,13 @@ import {
 // FastMCP's streamable-HTTP transport is stateful: `initialize` issues an
 // mcp-session-id and every later call must carry it, or the origin answers 400
 // "Missing session ID". It also frames replies as SSE even for single-shot
-// calls. This mirrors web/src/mcp.js — the Worker relays both, it does not
-// originate either.
-function unwrap(text) {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("{")) return JSON.parse(trimmed);
-  const line = trimmed.split("\n").find((l) => l.startsWith("data:"));
-  if (!line) throw new Error("upstream returned neither JSON nor SSE");
-  return JSON.parse(line.slice(5).trim());
-}
+// calls. Reuse the Worker's own frame picker rather than a second copy of it —
+// a hand-duplicated version here previously grabbed the first `data:` line
+// unconditionally, same bug as the Worker had, so this file exercising a tool
+// that never emits a mid-call notification (bolster_ni_executive, below) never
+// caught check_availability's ctx.info() notification frame shadowing its
+// result in production.
+const unwrap = (text) => parseUpstream(text);
 
 async function connect(endpoint) {
   let session = null;
@@ -78,23 +77,34 @@ async function connect(endpoint) {
 }
 
 describe("the MCP origin", () => {
-  // The single assumption the Worker exists to work around. If this ever starts
-  // sending CORS headers, the proxy stops being mandatory — though it would
-  // still be the only place the allowlist lives.
-  gate(it, needsNetwork)("sends no CORS headers, which is why the proxy is mandatory", async () => {
-    const response = await fetch(mcpOrigin, {
-      method: "OPTIONS",
-      headers: {
-        origin: "https://bolster.help",
-        "access-control-request-method": "POST",
-      },
-    });
-    assert.equal(
-      response.headers.get("access-control-allow-origin"),
-      null,
-      "origin now sends CORS headers — revisit whether the proxy is still mandatory",
-    );
-  });
+  // This flipped: the origin's Sept-1 auth refactor (adding /auth/mcp) added
+  // CORSMiddleware(allow_origins=["*"]) to guard an unrelated unmatched-route
+  // case, which as a side effect means a direct browser fetch to /mcp/ would
+  // now work CORS-wise. That never showed up here because this test was
+  // checking the pre-refactor bare "/mcp" URL, which 404s before reaching the
+  // origin's own middleware at all — this file had the same trailing-slash
+  // bug bolster.help's Worker did (see git history), just never noticed
+  // because it makes the origin CORS-permissive by accident. The Worker
+  // proxy is still not optional: it's the only place the tool allowlist,
+  // MAX_BODY_BYTES cap, and the shared-key/budget accounting live — none of
+  // that exists at the origin.
+  gate(it, needsNetwork)(
+    "sends permissive CORS headers on its own — the proxy adds guardrails, not access",
+    async () => {
+      const response = await fetch(mcpOrigin, {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://bolster.help",
+          "access-control-request-method": "POST",
+        },
+      });
+      assert.equal(
+        response.headers.get("access-control-allow-origin"),
+        "*",
+        "origin stopped sending CORS headers — the Worker is back to being the only way in",
+      );
+    },
+  );
 
   // tools.json is a manual snapshot with no trigger to refresh it. Stale
   // entries fail silently: the model is offered a tool that no longer exists,
@@ -128,6 +138,31 @@ describe("the MCP origin", () => {
       .join("");
     assert.ok(text.trim(), `${name} returned no text content`);
   });
+
+  // The specific gap that let the notification-shadowing bug reach
+  // production: every other tool here answers in a single SSE frame, so
+  // grabbing the first `data:` line happened to be correct by coincidence.
+  // check_availability calls ctx.info() before it returns, which puts a
+  // notification frame (no "id") ahead of the result frame — the case
+  // parseUpstream must skip past rather than stop on.
+  gate(it, needsNetwork)(
+    "answers check_availability, which logs via ctx.info() before returning",
+    async () => {
+      assert.ok(ALLOWED_TOOLS.has("check_availability"), "pick a tool the proxy would actually forward");
+
+      const rpc = await connect(mcpOrigin);
+      const result = await rpc("tools/call", { name: "check_availability", arguments: { days_ahead: 7 } });
+      const text = (result?.content ?? [])
+        .filter((c) => c.type === "text")
+        .map((c) => c.text)
+        .join("");
+      assert.ok(text.trim(), "check_availability returned no text content");
+      assert.doesNotMatch(text, /^\{"method":"notifications\/message"/, "got the notification frame, not the result");
+    },
+    // Fetches several live ICS calendars server-side; the 5s default is too
+    // tight for that round trip on a slow one.
+    15_000,
+  );
 });
 
 describe("the deployed Worker", () => {
