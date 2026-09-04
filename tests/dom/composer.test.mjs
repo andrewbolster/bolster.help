@@ -3,8 +3,9 @@
 // Enter used to always submit, because the field was a single-line <input>
 // that could not hold a newline at all — switching it to a <textarea> makes
 // Enter a newline for free, so what's actually being tested here is that
-// Alt+Enter still submits, and that the same Send button doubles as Stop
-// and genuinely aborts the in-flight request rather than just relabelling.
+// Alt+Enter and Shift+Enter still submit, and that the same Send button
+// doubles as Stop and genuinely aborts the in-flight request rather than
+// just relabelling.
 
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -123,6 +124,25 @@ describe("the composer", () => {
     await llmRequested;
     // The question is on screen as soon as the turn starts, before /llm
     // has answered — submitting cleared the field and disabled it.
+    expect(document.getElementById("transcript").textContent).toContain("how many mot tests last month?");
+    expect(field.value).toBe("");
+    expect(field.disabled).toBe(true);
+  });
+
+  it("submits on Shift+Enter", async () => {
+    const { llmRequested } = await startApp();
+    const field = document.getElementById("prompt");
+    field.value = "how many mot tests last month?";
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+
+    await llmRequested;
     expect(document.getElementById("transcript").textContent).toContain("how many mot tests last month?");
     expect(field.value).toBe("");
     expect(field.disabled).toBe(true);
