@@ -9,6 +9,7 @@ import { ALLOWED_METHODS, ALLOWED_TOOLS } from "./allowlist.js";
 import { callback, login, logout, session } from "./auth.js";
 import { chats } from "./chats.js";
 import { canUseSharedKey, llm, usage } from "./llm.js";
+import { parseUpstream } from "./sse.js";
 
 export { NeuronBudget } from "./budget.js";
 
@@ -42,18 +43,6 @@ function json(body, status, headers) {
 
 function rpcError(id, code, message, headers) {
   return json({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }, 200, headers);
-}
-
-// FastMCP's streamable-HTTP transport frames replies as SSE even for
-// single-shot calls, so unwrap the `data:` line before handing it back.
-function parseUpstream(text) {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("{")) return JSON.parse(trimmed);
-  for (const line of trimmed.split("\n")) {
-    if (line.startsWith("data:")) return JSON.parse(line.slice(5).trim());
-  }
-  throw new Error("upstream returned neither JSON nor SSE");
 }
 
 function reject(rpc, reason, headers) {

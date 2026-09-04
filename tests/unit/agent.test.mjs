@@ -7,7 +7,7 @@
 // asserted here.
 
 import assert from "node:assert/strict";
-import { describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 
 import { createAgent } from "../../web/src/agent.js";
 import { snapshot } from "../helpers.mjs";
@@ -244,7 +244,68 @@ describe("agent loop", () => {
     const out = await agentWith(engine, ok)(history, "follow up");
     assert.equal(out.messages[0].role, "system");
     assert.equal(out.messages[1].content, "earlier question");
-    assert.equal(out.messages[3].content, "follow up");
+    // The live message carries a timestamp prefix (see "date awareness" below);
+    // history is replayed verbatim, so only the trailing text is checked here.
+    assert.match(out.messages[3].content, /follow up$/);
+  });
+
+  describe("date awareness", () => {
+    // Observed live: asked for "next week", the model picked a start_date
+    // over a year in the past — nothing told it what day it actually was.
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // A Wednesday, so weekday and date can't accidentally agree by luck.
+      vi.setSystemTime(new Date("2026-09-09T12:00:00Z"));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("tells the model today's date in Europe/London terms", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "hi");
+      // Optional comma: Intl.DateTimeFormat's dateStyle: "full" output for
+      // en-GB varies by ICU version — some (including a CI runner observed
+      // live) render "Wednesday, 9 September 2026", others "Wednesday 9
+      // September 2026". The code doesn't care which; the test shouldn't either.
+      assert.match(out.messages[0].content, /Wednesday,? 9 September 2026/);
+      assert.match(out.messages[0].content, /2026-09-09/);
+    });
+
+    it("still carries the persona content alongside the date", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "hi");
+      assert.match(out.messages[0].content, /avatar of Andrew Bolster/);
+    });
+
+    // A second bug found chasing the first: the model reliably skipped calling
+    // any tool at all for a casual-greeting-plus-question phrasing ("hi there,
+    // how goes it? What's..."), fabricating an answer instead — 6/6 in testing.
+    // Prefixing the live message with a timestamp, plus explaining the format,
+    // fixed it (9/9). Neither alone did: the date sentence alone still hit the
+    // tool-skip, and the prefix alone (unexplained) didn't move the model's date
+    // maths.
+    it("prefixes the live user message with a YYYY-MM-DD HH:MM timestamp", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "what's the weather");
+      assert.equal(out.messages[1].content, "2026-09-09 13:00; what's the weather");
+    });
+
+    it("does not prefix replayed history, only the live message", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const history = [
+        { role: "user", content: "earlier question" },
+        { role: "assistant", content: "earlier answer" },
+      ];
+      const out = await agentWith(engine, ok)(history, "follow up");
+      assert.equal(out.messages[1].content, "earlier question");
+      assert.equal(out.messages[3].content, "2026-09-09 13:00; follow up");
+    });
+
+    it("tells the model what the prefix means and that it need not reply in kind", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "hi");
+      assert.match(out.messages[0].content, /prefixed with a YYYY-MM-DD HH:MM timestamp/);
+      assert.match(out.messages[0].content, /do not need to respond in the same format/);
+    });
   });
 
   it("emits tool, result and answer events in order", async () => {

@@ -524,10 +524,11 @@ export function main() {
   });
 
   // A textarea doesn't submit on Enter the way a single-line input did, so
-  // Enter is a newline for free now — Alt+Enter is the one thing that needs
-  // wiring up explicitly.
+  // Enter is a newline for free now — Alt+Enter and Shift+Enter are the
+  // submit shortcuts that need wiring up explicitly. Plain Enter alone stays
+  // a newline either way.
   el("prompt").addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && event.altKey) {
+    if (event.key === "Enter" && (event.altKey || event.shiftKey)) {
       event.preventDefault();
       el("composer").requestSubmit();
     }
