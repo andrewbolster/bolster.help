@@ -6,8 +6,7 @@ import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ORIGIN = process.env.MCP_ORIGIN ?? "https://mcp.bolster.online";
-const ENDPOINT = `${ORIGIN}/mcp`;
+const ENDPOINT = process.env.MCP_ORIGIN ?? "https://mcp.bolster.online/mcp/";
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "web", "src", "tools.json");
 
 const HEADERS = {
