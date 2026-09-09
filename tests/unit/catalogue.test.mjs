@@ -1,24 +1,18 @@
 // Agreement between the three lists that have to stay in step: the tool
 // snapshot, the proxy allowlist, and the question fixtures.
 //
-// Nothing keeps them aligned automatically. `refresh-tools` is manual, the
-// allowlist is hand-written on purpose, and fixtures are added by whoever adds
-// a tool. These assertions are where that drift surfaces.
+// The allowlist is now derived from the snapshot (see worker/src/allowlist.js)
+// rather than hand-written, so it can't drift from `upstream` by construction.
+// What's still manual is EXCLUDED_TOOLS and the fixtures, so those are what
+// these assertions watch.
 
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
-import { ALLOWED_METHODS, ALLOWED_TOOLS } from "../../worker/src/allowlist.js";
+import { ALLOWED_METHODS, ALLOWED_TOOLS, EXCLUDED_TOOLS } from "../../worker/src/allowlist.js";
 import { fixtures, snapshot } from "../helpers.mjs";
 
 const upstream = new Set(snapshot.tools.map((t) => t.name));
-
-// Named here rather than derived: the allowlist comment explains why each is
-// out, and this test fails loudly if one is ever quietly added back.
-const EXCLUDED = {
-  bolster_get_precipitation: "every call spends the Met Office API key quota",
-  send_contact_message: "write side-effect, delivers mail to a real inbox",
-};
 
 describe("tool snapshot", () => {
   it("records where it came from and when", () => {
@@ -41,24 +35,20 @@ describe("proxy allowlist", () => {
     assert.deepEqual(phantom, [], "allowlisted tools missing from tools.json — stale snapshot or a typo");
   });
 
-  it("keeps the two deliberate exclusions out", () => {
-    for (const [name, why] of Object.entries(EXCLUDED)) {
+  it("keeps the deliberate exclusions out", () => {
+    for (const [name, why] of Object.entries(EXCLUDED_TOOLS)) {
       assert.ok(upstream.has(name), `${name} is no longer upstream; the exclusion may be moot`);
       assert.ok(!ALLOWED_TOOLS.has(name), `${name} must stay unreachable — ${why}`);
     }
   });
 
-  // A new upstream tool stays unreachable until someone decides it is safe to
-  // expose anonymously. This test does not fail on that gap — it reports it, so
-  // the decision is visible rather than silent.
-  it("reports upstream tools awaiting a decision", () => {
-    const undecided = [...upstream].filter((name) => !ALLOWED_TOOLS.has(name) && !(name in EXCLUDED));
-    for (const name of undecided) console.info(`upstream but not allowlisted: ${name}`);
-    assert.equal(
-      ALLOWED_TOOLS.size + Object.keys(EXCLUDED).length + undecided.length,
-      upstream.size,
-      "every upstream tool should be allowlisted, excluded, or listed above",
-    );
+  // Every upstream tool not explicitly excluded is now allowlisted
+  // automatically — this is the flip side of the derivation, asserted so a
+  // bug in the filter (e.g. a typo'd EXCLUDED_TOOLS key) shows up as a
+  // failing test rather than a silent extra exposure or omission.
+  it("allowlists everything upstream except the deliberate exclusions", () => {
+    const expected = [...upstream].filter((name) => !(name in EXCLUDED_TOOLS)).sort();
+    assert.deepEqual([...ALLOWED_TOOLS].sort(), expected);
   });
 
   it("permits exactly the JSON-RPC methods the client uses", () => {
@@ -81,12 +71,14 @@ describe("question fixtures", () => {
     assert.deepEqual(unreachable, [], "a fixture cannot expect a tool the proxy refuses");
   });
 
-  // A fixture is a worked example of a question that tool should answer. An
-  // allowlisted tool without one is a tool nobody has checked is reachable.
-  it("cover every allowlisted tool at least once", () => {
+  // Fixtures are now a spot-check, not full coverage: with the allowlist
+  // auto-derived, a newly-exposed tool has no fixture until someone writes
+  // one. Reported so the gap stays visible without blocking every upstream
+  // addition on content authoring.
+  it("reports allowlisted tools with no fixture yet", () => {
     const covered = new Set(fixtures.map((f) => f.expect));
     const uncovered = [...ALLOWED_TOOLS].filter((name) => !covered.has(name)).sort();
-    assert.deepEqual(uncovered, [], "allowlisted tools with no fixture");
+    for (const name of uncovered) console.info(`allowlisted but no fixture yet: ${name}`);
   });
 
   it("give every fixture a prompt", () => {
