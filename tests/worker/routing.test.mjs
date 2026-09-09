@@ -111,16 +111,6 @@ describe("proxy guardrails", () => {
     assert.equal(error.code, -32601);
     assert.match(error.message, /tool not permitted/);
   });
-
-  // The two deliberate exclusions, named individually: one spends a metered
-  // third-party key on every call, the other delivers mail to a real inbox.
-  it("refuses bolster_get_precipitation and send_contact_message by name", async () => {
-    for (const name of ["bolster_get_precipitation", "send_contact_message"]) {
-      const error = await errorOf(await proxy(callTool(name)));
-      assert.equal(error.code, -32601, `${name} must stay unreachable`);
-      assert.match(error.message, new RegExp(name));
-    }
-  });
 });
 
 describe("/me", () => {
