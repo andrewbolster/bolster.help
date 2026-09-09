@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.6] - 2026-09-09
+
+- fix: repair upstream-drift check and make the allowlist auto-derived (#29)
+
+
 ## [0.1.5] - 2026-09-04
 
 - fix: notification-shadowing, one-shot tool-calling, and persona/UI polish (#28)
