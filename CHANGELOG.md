@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.7] - 2026-09-12
+
+- fix: session cookie needs SameSite=None for cross-site auth (#30)
+
+
 ## [0.1.6] - 2026-09-09
 
 - fix: repair upstream-drift check and make the allowlist auto-derived (#29)
