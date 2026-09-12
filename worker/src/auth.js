@@ -91,7 +91,7 @@ export async function callback(request, env) {
     status: 302,
     headers: {
       location: safeRedirect(back, env),
-      "set-cookie": `${COOKIE}=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL}`,
+      "set-cookie": `${COOKIE}=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${SESSION_TTL}`,
     },
   });
 }
@@ -103,7 +103,7 @@ export async function logout(request, env, headers) {
     status: 204,
     headers: {
       ...headers,
-      "set-cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`,
+      "set-cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0`,
     },
   });
 }
