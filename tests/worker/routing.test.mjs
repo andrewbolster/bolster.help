@@ -139,6 +139,28 @@ describe("/me", () => {
   });
 });
 
+describe("/usage", () => {
+  it("reports the shared-tier model for an allowlisted signed-in visitor via the route, not just the unit function", async () => {
+    const env = fakeEnv({
+      LLM_API_KEY: "sk-test",
+      LLM_BASE_URL: "https://provider.example/v1",
+      LLM_MODEL: "gpt-4o-mini",
+      GITHUB_ALLOWED_LOGINS: "andrewbolster",
+    });
+    const cookie = withSession(env, { github_id: 1, login: "andrewbolster" });
+    const response = await worker.fetch(request("/usage", { headers: { cookie } }), env);
+
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).model, "gpt-4o-mini");
+  });
+
+  it("answers with no session at all — the route must not require signing in", async () => {
+    const response = await worker.fetch(request("/usage"), fakeEnv());
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { enabled: false, model: null });
+  });
+});
+
 describe("parseUpstream", () => {
   // FastMCP streams one SSE frame per ctx.info()/ctx.warning() call made
   // during a tool's execution, then a final frame carrying the actual

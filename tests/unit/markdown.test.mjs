@@ -26,6 +26,19 @@ describe("blocks", () => {
     });
   });
 
+  // Confirms the parser genuinely needs no change to support Mermaid
+  // diagrams — a ```mermaid fence is just a code block with that language
+  // tag, like any other. The special rendering (mermaid.js) is entirely a
+  // renderMarkdown()-side concern.
+  it("parses a mermaid fence like any other fenced block", () => {
+    const [block] = parseMarkdown("```mermaid\ngraph TD;\n  A-->B;\n```");
+    expect(block).toEqual({
+      type: "code",
+      language: "mermaid",
+      text: "graph TD;\n  A-->B;",
+    });
+  });
+
   it("numbers an ordered list and not a bulleted one", () => {
     expect(parseMarkdown("1. one\n2. two")[0]).toEqual({
       type: "list",

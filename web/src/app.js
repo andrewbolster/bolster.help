@@ -4,6 +4,7 @@ import { createConversations, requestTitle } from "./conversations.js";
 import { download, exportFilename, toJSON, toMarkdown } from "./export.js";
 import { renderMarkdown } from "./markdown.js";
 import { McpClient } from "./mcp.js";
+import { upgradeMermaidDiagrams } from "./mermaid.js";
 import { createProxyEngine } from "./providers.js";
 
 const el = (id) => document.getElementById(id);
@@ -43,6 +44,36 @@ function formatArgs(args) {
   return rendered.length > 120 ? `${rendered.slice(0, 117)}…` : rendered.slice(1, -1);
 }
 
+/**
+ * Build the node for a `display_output` turn. Exported (rather than inlined
+ * in `render()`) so it can be unit-tested directly, the same way
+ * `markdown.js` separates parsing from rendering.
+ */
+export function buildDisplayNode(display, doc = document) {
+  const li = doc.createDocumentFragment();
+  if (display.caption) {
+    const caption = doc.createElement("span");
+    caption.className = "who";
+    caption.textContent = display.caption;
+    li.append(caption);
+  }
+  const shown = doc.createElement(display.format === "code" ? "pre" : "div");
+  shown.className = `shown ${display.format}`;
+  if (display.format === "markdown") {
+    // Same renderer as the model's own prose — a table or a ```mermaid block
+    // shown this way looks identical whether it arrived via display_output
+    // or inline in the reply. Still never innerHTML: renderMarkdown only
+    // builds nodes.
+    shown.append(renderMarkdown(display.content, doc));
+  } else {
+    // "code" and "text": literal, matching display_output's own contract —
+    // exactly what was given, not reinterpreted.
+    shown.textContent = display.content;
+  }
+  li.append(shown);
+  return li;
+}
+
 function render(transcript, history) {
   transcript.replaceChildren(
     ...history.map((turn) => {
@@ -60,20 +91,7 @@ function render(transcript, history) {
         body.textContent = turn.content;
         li.append(body);
       }
-      if (turn.display) {
-        const shown = document.createElement(turn.display.format === "code" ? "pre" : "div");
-        shown.className = `shown ${turn.display.format}`;
-        if (turn.display.caption) {
-          const caption = document.createElement("span");
-          caption.className = "who";
-          caption.textContent = turn.display.caption;
-          li.append(caption);
-        }
-        // textContent, never innerHTML: this is model output, and the tool
-        // deliberately offers no html format for the same reason.
-        shown.textContent = turn.display.content;
-        li.append(shown);
-      }
+      if (turn.display) li.append(buildDisplayNode(turn.display));
       if (turn.calls?.length) {
         // Folded away by default: what was asked and what came back is worth
         // being able to check, and worth not reading every time.
@@ -109,13 +127,25 @@ function render(transcript, history) {
     }),
   );
   transcript.lastElementChild?.scrollIntoView({ block: "end" });
+
+  // Fire-and-forget: render() itself stays synchronous, and per-diagram
+  // failures are already handled inside upgradeMermaidDiagrams (a fallback
+  // code block is left in place, not a rejected promise). Safe to call even
+  // when a turn has no mermaid block at all — an empty querySelectorAll match
+  // is a no-op.
+  upgradeMermaidDiagrams(transcript).catch(() => {});
 }
 
-// The allowance belongs to the deployment, not the visitor, so this needs no
-// session. Failing quietly is deliberate: the Worker re-checks on every call.
+// The allowance belongs to the deployment, not the visitor, so a session is
+// not required to get an answer — but `credentials: "include"` still has to
+// go along, because the model this specific caller resolves to (also
+// reported here — see worker/src/llm.js's usage()) depends on whether this
+// is a signed-in allowlisted visitor, and the cross-origin session cookie
+// won't reach the Worker without it. Failing quietly is deliberate: the
+// Worker re-checks on every call.
 async function refreshBudget() {
   try {
-    const response = await fetch(`${API_ORIGIN}/usage`);
+    const response = await fetch(`${API_ORIGIN}/usage`, { credentials: "include" });
     if (response.ok) state.budget = await response.json();
   } catch {
     state.budget = null;
@@ -399,7 +429,14 @@ function runExport(dialog) {
 
 // Built once, in the background. The composer is live before this resolves; a
 // message sent early waits on the same promise rather than being rejected.
-async function buildAgent() {
+//
+// `modelPromise` piggybacks on the /usage fetch main() already makes for the
+// budget bar — resolving the model here would mean a second round trip for
+// something the Worker already reported. It's a promise rather than a plain
+// value because the two fetches genuinely run in parallel; awaiting it here
+// costs nothing extra since buildAgent is already waiting on tools.json and
+// the MCP handshake regardless.
+async function buildAgent(modelPromise) {
   const engine = createProxyEngine(`${API_ORIGIN}/llm`, (budget) => {
     state.budget = { ...state.budget, ...budget, enabled: true };
     renderBudget();
@@ -407,16 +444,17 @@ async function buildAgent() {
   // Titling uses the same engine, so it reports against the same budget bar.
   state.engine = engine;
 
-  const [snapshot, mcp] = await Promise.all([
+  const [snapshot, mcp, model] = await Promise.all([
     fetch("./src/tools.json").then((r) => r.json()),
     (async () => {
       const client = new McpClient(PROXY_ENDPOINT);
       await client.connect();
       return client;
     })(),
+    modelPromise,
   ]);
 
-  return createAgent({ tools: snapshot.tools, engine, mcp });
+  return createAgent({ tools: snapshot.tools, engine, mcp, model });
 }
 
 export function main() {
@@ -433,10 +471,13 @@ export function main() {
   updateClear();
 
   refreshAccount();
-  refreshBudget();
+  const budgetPromise = refreshBudget();
 
   // Kick off immediately; the first message awaits whatever this settles to.
-  state.agent = buildAgent().catch((err) => {
+  // refreshBudget()'s own try/catch means this always resolves — a network
+  // hiccup degrades to "no model clause" in the system prompt, not a blocked
+  // agent.
+  state.agent = buildAgent(budgetPromise.then(() => state.budget?.model)).catch((err) => {
     el("progress").textContent = `Could not reach the tools: ${err.message}`;
     return null;
   });

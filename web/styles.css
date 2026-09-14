@@ -491,9 +491,12 @@ td {
   color: #b91c1c;
 }
 
-/* Content the model chose to show rather than say. Rendered as text in every
-   case — display_output offers no html format, because tool results influence
-   what the model writes and markup from that path would be an injection. */
+/* Content the model chose to show rather than say. format: "code" and "text"
+   are shown as the literal string given — that boundary is enforced in
+   renderMarkdown(), which never touches innerHTML, not by refusing to parse
+   markdown here. format: "markdown" goes through the same renderer as the
+   model's own prose, so a table or a ```mermaid block looks identical
+   whichever path it arrived by. */
 .shown {
   margin-top: 0.4rem;
   padding: 0.6rem 0.8rem;
@@ -501,6 +504,13 @@ td {
   font-size: 0.875rem;
   white-space: pre-wrap;
   overflow-x: auto;
+}
+
+/* Rendered markdown supplies its own block layout (p, table, ul, ...); the
+   pre-wrap above is for the literal code/text cases and would otherwise
+   double up on whitespace already handled by those elements. */
+.shown.markdown {
+  white-space: normal;
 }
 
 .shown.code {
@@ -551,6 +561,25 @@ td {
 #transcript pre code {
   padding: 0;
   background: none;
+}
+
+/* A mermaid-diagram container starts as its fallback <pre><code> (styled
+   above, same as any other code block) and is swapped for a real <svg> by
+   mermaid.js's upgradeMermaidDiagrams(), which is why there's nothing here
+   for the un-upgraded state — the fallback already looks right. */
+.mermaid-diagram.mermaid-rendered {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 0.6rem;
+}
+.mermaid-diagram.mermaid-rendered svg {
+  max-width: 100%;
+  height: auto;
+}
+/* Invalid Mermaid syntax from the model: the fallback code block stays, with
+   a border marking that it didn't render rather than leaving that silent. */
+.mermaid-diagram.mermaid-failed pre {
+  border-left: 2px solid #b91c1c;
 }
 #transcript blockquote {
   margin: 0 0 0.6rem;

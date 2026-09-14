@@ -136,9 +136,14 @@ export default {
         : json({ error: "not signed in" }, 401, headers);
     }
 
-    // Public: it reports the deployment's own allowance, not anything about
-    // the caller, and the page needs it before anyone has signed in.
-    if (pathname === "/usage") return json(await usage(env), 200, headers);
+    // Public: it reports the deployment's own allowance plus which model this
+    // caller's next turn resolves to, not a gate — the page needs it before
+    // anyone has signed in, and the browser needs the model before its first
+    // /llm call, since a reply carrying that information doesn't exist yet.
+    if (pathname === "/usage") {
+      const user = await session(request, env);
+      return json(await usage(env, user), 200, headers);
+    }
 
     if (pathname === "/llm") {
       const user = await session(request, env);

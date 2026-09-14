@@ -82,4 +82,36 @@ describe("full_tool_documentation", () => {
     expect(lookupDocumentation(snapshot.tools, "births")).toMatch(/Did you mean: bolster_nisra_births/);
     expect(lookupDocumentation(snapshot.tools, "zzz")).toBe('No tool called "zzz".');
   });
+
+  // Observed live: asked to describe itself, the model sometimes calls this
+  // tool with "assistant" — an invented name, since no such MCP tool exists
+  // — rather than trusting its own system prompt.
+  describe('the "assistant" backstop', () => {
+    it("answers with identity and the resolved model, not a not-found message", () => {
+      const docs = lookupDocumentation(snapshot.tools, "assistant", { model: "gpt-4o-mini" });
+      expect(docs).toMatch(/avatar of Andrew Bolster|bolster\.help/);
+      expect(docs).toMatch(/gpt-4o-mini/);
+      expect(docs).not.toMatch(/No tool called/);
+    });
+
+    it("still answers, just without naming a model, when none is supplied", () => {
+      const docs = lookupDocumentation(snapshot.tools, "assistant");
+      expect(docs).toMatch(/avatar of Andrew Bolster|bolster\.help/);
+      expect(docs).not.toMatch(/No tool called/);
+    });
+
+    it("is case-insensitive", () => {
+      expect(lookupDocumentation(snapshot.tools, "Assistant")).toMatch(/avatar of Andrew Bolster/);
+    });
+
+    // "bolster" was also observed as a guess, but it's already Andrew's own
+    // name, the Python package this MCP server wraps, and the server's own
+    // tool-name prefix (bolster_*) — aliasing it as "the assistant" would
+    // make an already-overloaded word worse, not better, for one anecdotal
+    // hit. It should fall through to the ordinary fuzzy-match path.
+    it("does not alias bare 'bolster' — that word is already overloaded elsewhere", () => {
+      const docs = lookupDocumentation(snapshot.tools, "bolster");
+      expect(docs).not.toMatch(/avatar of Andrew Bolster answering as him/);
+    });
+  });
 });

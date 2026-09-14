@@ -347,16 +347,57 @@ describe("budget arithmetic", () => {
 });
 
 describe("/usage", () => {
-  it("says the free tier is off when there is no binding", async () => {
-    expect(await usage(fakeEnv())).toEqual({ enabled: false });
+  it("says the free tier is off and names no model when neither tier is configured", async () => {
+    expect(await usage(fakeEnv())).toEqual({ enabled: false, model: null });
   });
 
-  it("reports the allowance without needing a session", async () => {
+  it("reports the allowance and the free-tier model without needing a session", async () => {
     const { stub, env: environment } = withBudget();
     await stub.spend(2_500);
     const report = await usage(environment);
     expect(report.enabled).toBe(true);
+    expect(report.model).toBe(FREE_TIER_MODEL);
     expect(report.remaining).toBeCloseTo(7_500, 2);
     expect(report.exhausted).toBe(false);
+  });
+
+  it("reports the free-tier model for an anonymous caller even without a user argument", async () => {
+    const { env: environment } = withBudget();
+    expect((await usage(environment)).model).toBe(FREE_TIER_MODEL);
+  });
+
+  // Model resolution and "is the free tier configured" are different
+  // questions — an allowlisted account gets the shared-tier model regardless
+  // of whether env.AI/NEURON_BUDGET exist at all.
+  it("reports the shared-tier model for an allowlisted signed-in visitor, even with no free tier configured", async () => {
+    const environment = fakeEnv({
+      LLM_API_KEY: "sk-test",
+      LLM_BASE_URL: "https://provider.example/v1",
+      LLM_MODEL: "gpt-4o-mini",
+      GITHUB_ALLOWED_LOGINS: "andrewbolster",
+    });
+    const report = await usage(environment, andrew);
+    expect(report.enabled).toBe(false); // freeTierEnabled() is about AI/NEURON_BUDGET, unrelated to this caller's tier
+    expect(report.model).toBe("gpt-4o-mini");
+  });
+
+  it("falls back to gpt-4o-mini for the shared tier when LLM_MODEL is unset", async () => {
+    const environment = fakeEnv({
+      LLM_API_KEY: "sk-test",
+      LLM_BASE_URL: "https://provider.example/v1",
+      GITHUB_ALLOWED_LOGINS: "andrewbolster",
+    });
+    expect((await usage(environment, andrew)).model).toBe("gpt-4o-mini");
+  });
+
+  it("does not give a non-allowlisted signed-in visitor the shared-tier model", async () => {
+    const { env: environment } = withBudget({
+      LLM_API_KEY: "sk-test",
+      LLM_BASE_URL: "https://provider.example/v1",
+      LLM_MODEL: "gpt-4o-mini",
+      GITHUB_ALLOWED_LOGINS: "andrewbolster",
+    });
+    const report = await usage(environment, { login: "stranger" });
+    expect(report.model).toBe(FREE_TIER_MODEL);
   });
 });

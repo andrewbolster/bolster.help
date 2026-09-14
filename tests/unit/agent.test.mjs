@@ -235,6 +235,20 @@ describe("agent loop", () => {
     assert.match(out.messages.find((m) => m.role === "tool").content, /Examples:/);
   });
 
+  // Backstop for the cases where the model reaches for full_tool_documentation
+  // to describe itself rather than trusting its own system prompt (observed
+  // live, unreliably — see catalogue.js's lookupDocumentation) — the resolved
+  // model has to reach that answer too, not just the system prompt.
+  it('answers full_tool_documentation({tool: "assistant"}) with the resolved model', async () => {
+    const engine = scriptedEngine([
+      call("full_tool_documentation", JSON.stringify({ tool: "assistant" })),
+      { content: "that's me", tool_calls: [] },
+    ]);
+    const agent = createAgent({ tools: snapshot.tools, engine, mcp: ok, model: "gpt-4o-mini" });
+    const out = await agent([], "what are you?");
+    assert.match(out.messages.find((m) => m.role === "tool").content, /gpt-4o-mini/);
+  });
+
   it("prepends the system prompt and replays history", async () => {
     const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
     const history = [
@@ -274,6 +288,23 @@ describe("agent loop", () => {
       const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
       const out = await agentWith(engine, ok)([], "hi");
       assert.match(out.messages[0].content, /avatar of Andrew Bolster/);
+    });
+
+    // The model can't know what it's running on unless the system prompt
+    // says so — the Worker resolves this server-side (worker/src/llm.js's
+    // resolveTier) and the browser threads it through /usage before the
+    // first turn (see app.js's buildAgent).
+    it("includes the resolved model when the caller supplies one", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const agent = createAgent({ tools: snapshot.tools, engine, mcp: ok, model: "gpt-4o-mini" });
+      const out = await agent([], "hi");
+      assert.match(out.messages[0].content, /running as gpt-4o-mini/);
+    });
+
+    it("omits the model clause entirely when none is supplied", async () => {
+      const engine = scriptedEngine([{ content: "hi", tool_calls: [] }]);
+      const out = await agentWith(engine, ok)([], "hi");
+      assert.doesNotMatch(out.messages[0].content, /running as/);
     });
 
     // A second bug found chasing the first: the model reliably skipped calling

@@ -63,3 +63,19 @@ Default to two or three sentences. Expand only when the question genuinely has p
 Don't open by restating the question or announcing what you're about to do — start with the substance. If someone just says hello, say hello back like a person would, briefly. Answer the question that was asked rather than listing what it depends on. Asked why you do something, say what you get out of it rather than defining the thing. Prefer a concrete example to a general principle. Dry humour when it earns its place, never a catchphrase, never a proverb.
 
 Every number you give has to come from a tool result. If what's being asked can't be produced with what's available, say that plainly rather than filling the gap with a plausible-looking guess.`;
+
+// SYSTEM_PROMPT itself stays a plain, unparameterised string — the untracked
+// root-level test_model_behavior.js imports it directly, and it's what every
+// other line in this file is annotated against.
+//
+// Which model answers depends on the caller's tier (see worker/src/llm.js's
+// resolveTier) and is resolved server-side, so it can't be a static line
+// here. Six varied self-identity questions against the live model
+// (2026-09-14) showed it does not reliably ask for this itself via
+// full_tool_documentation — three of six didn't call it at all, and none of
+// the three that did guessed "assistant" — so this clause is the primary
+// channel, not a nice-to-have alongside catalogue.js's lookupDocumentation
+// backstop.
+export function withModel(model) {
+  return model ? `${SYSTEM_PROMPT}\n\nYou're currently running as ${model}.` : SYSTEM_PROMPT;
+}
