@@ -67,9 +67,37 @@ export function toToolSchemas(tools) {
   }));
 }
 
+// Observed live: asked to describe itself, the model sometimes invents a
+// tool call rather than trusting its own system prompt —
+// full_tool_documentation({tool: "assistant"}). Six varied self-identity
+// questions against the live model (2026-09-14) showed this is unreliable
+// overall (3/6 didn't call this tool at all; the ones that did also guessed
+// "bolster_boe_base_rate", "bolster_companies_house" and bare "bolster" —
+// none repeated "assistant"), so this is a backstop for the one name
+// actually worth special-casing, not the primary channel — see withModel()
+// in persona.js for that.
+//
+// "bolster" itself is deliberately NOT aliased here despite being observed
+// once: it's already Andrew's own name, the Python package this MCP server
+// wraps, and the server's own tool-name prefix (bolster_*) — special-casing
+// it as "the assistant" would make an already-overloaded word worse, not
+// better, for exactly one anecdotal hit.
+const ASSISTANT_ALIASES = new Set(["assistant"]);
+
+function describeAssistant(model) {
+  return [
+    "assistant",
+    "",
+    "Not an MCP tool. This is bolster.help itself — an avatar of Andrew Bolster answering as him.",
+    model ? `Currently running as ${model}.` : "Model not resolved for this session.",
+  ].join("\n");
+}
+
 /** The unabridged docstring, or a message naming what does exist. */
-export function lookupDocumentation(tools, wanted) {
+export function lookupDocumentation(tools, wanted, { model } = {}) {
   const name = String(wanted ?? "").trim();
+  if (ASSISTANT_ALIASES.has(name.toLowerCase())) return describeAssistant(model);
+
   const tool = tools.find((t) => t.name === name) ?? tools.find((t) => t.name === `bolster_${name}`);
 
   if (!tool) {

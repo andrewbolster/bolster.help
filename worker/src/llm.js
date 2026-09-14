@@ -12,7 +12,7 @@
 // most expensive one available.
 
 import { budgetOf } from "./budget.js";
-import { classify, freeTierEnabled, MAX_OUTPUT_TOKENS, runFreeTier } from "./workers-ai.js";
+import { classify, FREE_TIER_MODEL, freeTierEnabled, MAX_OUTPUT_TOKENS, runFreeTier } from "./workers-ai.js";
 
 // Reject before parsing: a Worker has a few milliseconds of CPU, and
 // JSON.parse on a body someone chose is the cheapest way to spend all of it.
@@ -220,9 +220,23 @@ export async function llm(request, env, headers, user) {
   return tier === "shared" ? relayToProvider(env, body, headers) : serveFreeTier(env, body, headers);
 }
 
-// What the page needs to decide which form to show, and to draw the bar. Public
-// on purpose: it reports the deployment's own allowance, nothing about a caller.
-export async function usage(env) {
-  if (!freeTierEnabled(env)) return { enabled: false };
-  return { enabled: true, ...(await budgetOf(env).peek()) };
+// What the page needs to decide which form to show, and to draw the bar, plus
+// which model this specific caller's next turn will actually resolve to — the
+// browser builds its system prompt before the first /llm round trip, so it
+// has to learn the model here rather than from a reply that doesn't exist yet.
+// Model resolution and "is the free tier configured" are different questions:
+// an allowlisted signed-in visitor gets the shared-tier model regardless of
+// whether the free tier is enabled at all, so `model` is computed first and
+// included either way. Still public on purpose — it reports what this caller
+// would get, not anything that gates access.
+export async function usage(env, user) {
+  const tier = resolveTier(env, user);
+  const model =
+    tier === "shared"
+      ? (env.LLM_MODEL ?? "gpt-4o-mini")
+      : tier === "free"
+        ? (env.WORKERS_AI_MODEL ?? FREE_TIER_MODEL)
+        : null;
+  if (!freeTierEnabled(env)) return { enabled: false, model };
+  return { enabled: true, model, ...(await budgetOf(env).peek()) };
 }

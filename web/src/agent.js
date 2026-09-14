@@ -1,7 +1,7 @@
 // The tool-calling loop.
 
 import { DOCUMENTATION_TOOL, isDocumentationTool, lookupDocumentation, toToolSchemas } from "./catalogue.js";
-import { SYSTEM_PROMPT } from "./persona.js";
+import { SYSTEM_PROMPT, withModel } from "./persona.js";
 import { createStore, isStoreTool } from "./store.js";
 
 export { SYSTEM_PROMPT };
@@ -75,7 +75,7 @@ function parseArguments(raw) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-export function createAgent({ tools, engine, mcp, store }) {
+export function createAgent({ tools, engine, mcp, store, model }) {
   // Every tool, every turn, described by its prose rather than its full
   // docstring. full_tool_documentation fetches the rest when it is wanted.
   const catalogue = [...toToolSchemas(tools), DOCUMENTATION_TOOL];
@@ -101,7 +101,7 @@ export function createAgent({ tools, engine, mcp, store }) {
     emit = onEvent;
 
     const messages = [
-      { role: "system", content: `${SYSTEM_PROMPT}\n\n${todayContext()}\n\n${PREFIX_FORMAT_NOTE}` },
+      { role: "system", content: `${withModel(model)}\n\n${todayContext()}\n\n${PREFIX_FORMAT_NOTE}` },
       ...history,
       { role: "user", content: `${timestampPrefix()}; ${userMessage}` },
     ];
@@ -133,7 +133,7 @@ export function createAgent({ tools, engine, mcp, store }) {
           // Reading stored output is local: it never leaves the browser and
           // never reaches the proxy.
           content = isDocumentationTool(name)
-            ? lookupDocumentation(tools, args.tool)
+            ? lookupDocumentation(tools, args.tool, { model })
             : isStoreTool(name)
               ? active.call(name, args)
               : active.put(name, await mcp.callTool(name, args, { signal }));

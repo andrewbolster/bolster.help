@@ -177,7 +177,21 @@ export function renderMarkdown(text, doc = document) {
   const fragment = doc.createDocumentFragment();
 
   for (const block of parseMarkdown(text)) {
-    if (block.type === "code") {
+    if (block.type === "code" && block.language === "mermaid") {
+      // Rendering the diagram itself is async (mermaid.js) and this function
+      // stays synchronous — mermaid.js's upgradeMermaidDiagrams() walks the
+      // DOM after render() appends it and swaps this placeholder for the real
+      // thing, or leaves it as-is if the model wrote invalid Mermaid syntax.
+      const container = doc.createElement("div");
+      container.className = "mermaid-diagram";
+      container.dataset.mermaidSource = block.text;
+      const pre = doc.createElement("pre");
+      const code = doc.createElement("code");
+      code.textContent = block.text;
+      pre.append(code);
+      container.append(pre);
+      fragment.append(container);
+    } else if (block.type === "code") {
       const pre = doc.createElement("pre");
       const code = doc.createElement("code");
       code.textContent = block.text;
