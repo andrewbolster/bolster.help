@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.8] - 2026-09-14
+
+- feat: model self-awareness, assistant self-documentation, Mermaid diagrams (#32)
+
+
 ## [0.1.7] - 2026-09-12
 
 - fix: session cookie needs SameSite=None for cross-site auth (#30)
