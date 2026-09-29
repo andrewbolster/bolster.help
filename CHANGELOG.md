@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.9] - 2026-09-29
+
+- docs: add AGENTS.md with load-bearing invariants; CLAUDE.md as signpost (#33)
+
+
 ## [0.1.8] - 2026-09-14
 
 - feat: model self-awareness, assistant self-documentation, Mermaid diagrams (#32)
