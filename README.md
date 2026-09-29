@@ -85,10 +85,27 @@ earlier cap of 24 silently held the loop to eleven rounds regardless of
 ## Layout
 
 ```
-web/       static frontend (Cloudflare Pages)
+web/       static frontend (GitHub Pages, no build step)
 worker/    Cloudflare Worker: MCP proxy, auth, chat persistence
 scripts/   maintenance and verification scripts
+tests/     vitest projects: unit, dom, worker
 ```
+
+`web/` is plain ES modules under `web/src/`: `app.js` (page and send loop),
+`agent.js` (the tool-call loop), `mcp.js`, `catalogue.js`, `persona.js`,
+`markdown.js`, `mermaid.js`. Contributor notes and the invariants to preserve
+are in `AGENTS.md`.
+
+## Rendering and trust boundaries
+
+Everything the model writes is treated as untrusted: the service is public,
+anonymous and unmoderated. `renderMarkdown` never assigns to `innerHTML`; it
+builds DOM nodes. Diagrams are the one exception, kept isolated in
+`web/src/mermaid.js`: Mermaid (pinned to `mermaid@11` from jsDelivr) runs with
+`securityLevel: "strict"`, and its SVG is parsed with `DOMParser` and imported
+as nodes instead of being injected as a string. The page and the API sit on
+different origins, so calls that need the session cookie use
+`credentials: "include"`, and the cookie is `SameSite=None; Secure`.
 
 ## Observability
 
