@@ -30,6 +30,8 @@
         <p id="account">
           <button id="signin" type="button" class="link">Sign in with GitHub</button>
           <span id="whoami" hidden></span>
+          <button id="signout" type="button" class="link" hidden>Sign out</button>
+          <button id="llm-settings" type="button" class="link" hidden>Your model</button>
         </p>
       </header>
 
@@ -86,6 +88,17 @@
           <button type="submit" value="export" id="do-export">Export</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="llm-dialog">
+      <h3>Your model</h3>
+      <p class="muted">
+        Use your own OpenAI-compatible provider. The key is stored encrypted and is never shown again.
+      </p>
+      <div id="llm-config"></div>
+      <div class="dialog-actions">
+        <button type="button" id="llm-close" class="secondary">Close</button>
+      </div>
     </dialog>
 
     <script type="module" src="./src/app.js"></script>

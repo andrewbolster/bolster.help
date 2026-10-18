@@ -14,11 +14,13 @@ web/                 static frontend, served as-is by GitHub Pages (no build ste
   src/persona.js     system prompt
   src/markdown.js    renderMarkdown (hand-rolled; see invariants)
   src/mermaid.js     diagram upgrade (the one exception; see invariants)
+  src/llm-config.js  the "Your model" settings form
   src/config.js      API_ORIGIN / PROXY_ENDPOINT
   src/tools.json     manual snapshot of the server's tools/list
   src/fixtures.json  one fixture per allowlisted tool
 worker/              Cloudflare Worker: index.js (routes), auth.js, chats.js, llm.js,
-                     workers-ai.js, budget.js (NeuronBudget Durable Object), allowlist.js
+                     workers-ai.js, budget.js (NeuronBudget Durable Object), allowlist.js,
+                     userconfig.js (saved model settings), ssrf.js (URL guard)
 scripts/             refresh-tools.mjs
 tests/               vitest: unit (Node), dom (happy-dom), worker (workerd)
 ```
@@ -44,6 +46,7 @@ Skipped tests state why they were skipped. A green run says which assumptions we
 - **`full_tool_documentation` has an `assistant` alias, and deliberately not `bolster`.** The model asks for docs about itself under that name; `bolster` is ambiguous (package vs. server vs. site).
 - **Every tool is sent every turn.** Adding or renaming a tool raises the cost of every request; check README's "Every tool is sent every turn" before growing the catalogue.
 - **`tools.json` and the allowlist are hand-maintained and can drift silently.** Change a server tool, run `npm run refresh-tools`, then update the allowlist and its fixture. Every allowlisted tool needs a fixture. `bolster_get_precipitation` (metered third-party key) and `send_contact_message` (delivers real mail) stay excluded by name; a test enforces it.
+- **A saved API key is never returned or logged.** `/llm-config` answers with the last four characters only; keep the key and provider error bodies out of responses and `console` output, and send a user-supplied URL only through `ssrf.js`.
 - **`MCP_ORIGIN` is used verbatim as the upstream URL.** Keep the form in `wrangler.toml` (with its trailing slash).
 - **Durable Object is declared with `exports`, not `[[migrations]]`.** See README "Deploying" for the failure that led to this; don't "tidy" it.
 - **`worker/wrangler.test.toml` is production config minus bindings with no local simulator** (Workers AI would demand an API token). `tests/unit/config.test.mjs` keeps the two in step.

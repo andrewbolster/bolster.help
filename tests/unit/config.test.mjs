@@ -32,7 +32,6 @@ const value = (source, key) => source.match(new RegExp(`^\\s*${key}\\s*=\\s*"([^
 // Deliberately absent from the test config, each for a reason worth restating.
 const OMITTED = {
   "[ai]": "no local simulator; declaring it forces a remote proxy session",
-  "[[d1_databases]]": "no useful local behaviour for what these tests cover",
 };
 
 describe("wrangler configs", () => {
@@ -58,6 +57,13 @@ describe("wrangler configs", () => {
     }
   });
 
+  // The per-user LLM config tests run real SQL, so the test config keeps D1.
+  it("agree on the D1 binding the Worker reads", () => {
+    for (const source of [live, test]) {
+      expect(source).toMatch(/\[\[d1_databases\]\]\s*\nbinding = "DB"/);
+    }
+  });
+
   it("agree on the model pinned for the free tier", () => {
     expect(value(test, "WORKERS_AI_MODEL")).toBe(value(live, "WORKERS_AI_MODEL"));
   });
@@ -75,6 +81,7 @@ describe("wrangler configs", () => {
     for (const source of [live, test]) {
       expect(source).not.toMatch(/LLM_API_KEY\s*=/);
       expect(source).not.toMatch(/GITHUB_CLIENT_SECRET\s*=/);
+      expect(source).not.toMatch(/USER_CONFIG_KEY\s*=/);
       expect(source).not.toMatch(/\bsk-[A-Za-z0-9]/);
     }
   });

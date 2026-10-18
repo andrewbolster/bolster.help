@@ -123,6 +123,7 @@ describe("/me", () => {
     assert.deepEqual(await response.json(), {
       login: "octocat",
       sharedKey: false,
+      ownKey: false,
     });
   });
 

@@ -10,8 +10,8 @@
 # guarantee is the whole reason NeuronBudget exists, and a hand-written fake
 # would assert the guarantee we wanted rather than the one we get.
 #
-# The D1 binding is omitted for the same reason as AI — no useful local
-# behaviour — and stood in for where a test needs it.
+# D1 is kept: miniflare runs it for real, and the per-user LLM config tests
+# exercise actual SQL against it.
 #
 # tests/worker/config.test.mjs asserts this file and wrangler.toml agree on
 # everything they share, so the omissions stay deliberate rather than drifting.
@@ -29,6 +29,11 @@ WORKERS_AI_MODEL = "@cf/ibm-granite/granite-4.0-h-micro"
 [[kv_namespaces]]
 binding = "SESSIONS"
 id = "test-sessions"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bolster-help-test"
+database_id = "test-db"
 
 [[durable_objects.bindings]]
 name = "NEURON_BUDGET"
