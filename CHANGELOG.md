@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.12] - 2026-10-18
+
+- Let allowlisted logins use a model of their own; add Sign out (#37)
+
+
 ## [0.1.11] - 2026-10-18
 
 - Upload the OAuth secrets after the deploy, not before (#35)
