@@ -1,12 +1,15 @@
 import { createAgent } from "./agent.js";
-import { API_ORIGIN, PROXY_ENDPOINT } from "./config.js";
+import { API_ORIGIN, OAUTH_REDIRECT_URI, PROXY_ENDPOINT, PUBLIC_MCP_ORIGIN, SUGGESTED_SERVER } from "./config.js";
+import { createConnections } from "./connections.js";
+import { mountConnections } from "./connections-ui.js";
 import { createConversations, requestTitle } from "./conversations.js";
 import { download, exportFilename, toJSON, toMarkdown } from "./export.js";
 import { mountLlmConfig } from "./llm-config.js";
 import { renderMarkdown } from "./markdown.js";
-import { McpClient } from "./mcp.js";
+import { DirectMcpClient, McpClient } from "./mcp.js";
 import { upgradeMermaidDiagrams } from "./mermaid.js";
 import { createProxyEngine } from "./providers.js";
+import { assembleToolset } from "./toolset.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -23,6 +26,9 @@ const state = {
 };
 
 const conversations = createConversations();
+
+// MCP servers this browser is signed in to. Tokens live here, never on the Worker.
+const connections = createConnections({ redirectUri: OAUTH_REDIRECT_URI });
 
 // Nothing to clear until there is something in the transcript.
 const updateClear = () => {
@@ -195,6 +201,28 @@ function enableModelSettings() {
   el("llm-close").addEventListener("click", () => dialog.close());
 }
 
+// Offered to anyone signed in. The panel opens after the agent has been built so
+// it can say how many tools each connection added.
+let connectionsReady = false;
+function enableConnections() {
+  if (connectionsReady) return;
+  connectionsReady = true;
+  const dialog = el("connections-dialog");
+  const panel = mountConnections(el("connections-panel"), {
+    connections,
+    suggested: SUGGESTED_SERVER,
+    getCounts: () => state.toolCounts ?? {},
+    onChange: () => location.reload(),
+  });
+  el("connections").hidden = false;
+  el("connections").addEventListener("click", async () => {
+    await state.agent;
+    panel.refresh();
+    dialog.showModal();
+  });
+  el("connections-close").addEventListener("click", () => dialog.close());
+}
+
 async function refreshAccount() {
   try {
     const response = await fetch(`${API_ORIGIN}/me`, {
@@ -209,6 +237,7 @@ async function refreshAccount() {
     el("signout").hidden = false;
     el("save-chat").hidden = false;
     if (state.user.ownKey) enableModelSettings();
+    enableConnections();
   } catch {
     // Not signed in, or the Worker isn't reachable. The chat works either way.
   }
@@ -235,6 +264,11 @@ async function signOut() {
   el("save-chat").hidden = true;
   el("llm-settings").hidden = true;
   el("llm-dialog").close();
+  // Everything this browser holds for other servers goes with the session.
+  connections.clearAll();
+  state.toolCounts = {};
+  el("connections").hidden = true;
+  el("connections-dialog").close();
   el("progress").textContent = "";
   startAgent(refreshBudget());
 }
@@ -496,7 +530,21 @@ async function buildAgent(modelPromise) {
     modelPromise,
   ]);
 
-  return createAgent({ tools: snapshot.tools, engine, mcp, model });
+  // Public tools for everyone; plus everything each connected server lists.
+  const toolset = await assembleToolset({
+    publicTools: snapshot.tools,
+    publicClient: mcp,
+    connections,
+    makeClient: (connection) => new DirectMcpClient(connection.url, connections.fetchFor(connection.id)),
+    publicOrigin: PUBLIC_MCP_ORIGIN,
+  });
+  state.toolCounts = toolset.counts;
+  if (toolset.problems.length) {
+    const [first] = toolset.problems;
+    el("progress").textContent = `Could not use ${first.origin}: ${first.message}`;
+  }
+
+  return createAgent({ tools: toolset.tools, engine, mcp: toolset.mcp, model });
 }
 
 // Kick off immediately; the first message awaits whatever this settles to.

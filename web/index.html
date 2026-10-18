@@ -32,6 +32,7 @@
           <span id="whoami" hidden></span>
           <button id="signout" type="button" class="link" hidden>Sign out</button>
           <button id="llm-settings" type="button" class="link" hidden>Your model</button>
+          <button id="connections" type="button" class="link" hidden>Connections</button>
         </p>
       </header>
 
@@ -98,6 +99,17 @@
       <div id="llm-config"></div>
       <div class="dialog-actions">
         <button type="button" id="llm-close" class="secondary">Close</button>
+      </div>
+    </dialog>
+
+    <dialog id="connections-dialog">
+      <h3>Connections</h3>
+      <p class="muted">
+        Sign in to other MCP servers to use their tools in this chat. Tokens stay in this browser.
+      </p>
+      <div id="connections-panel"></div>
+      <div class="dialog-actions">
+        <button type="button" id="connections-close" class="secondary">Close</button>
       </div>
     </dialog>
 
