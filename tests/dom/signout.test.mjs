@@ -21,10 +21,14 @@ const flush = async () => {
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-// `me` is what /me answers; `logout` is what POST /auth/logout answers.
-async function startApp({ me, logout = () => new Response(null, { status: 204 }) }) {
+const TOKEN_KEY = "bolster.help/session";
+
+// `me` is what /me answers; `logout` is what POST /auth/logout answers; `token`
+// is the session token already in storage.
+async function startApp({ me, logout = () => new Response(null, { status: 204 }), token = null }) {
   document.body.innerHTML = markupOnly(PAGE);
   localStorage.setItem("bolster.help/conversations", "[]");
+  if (token) localStorage.setItem(TOKEN_KEY, token);
   const calls = [];
   vi.stubGlobal(
     "fetch",
@@ -75,14 +79,30 @@ describe("the account area", () => {
 });
 
 describe("signing out", () => {
-  it("POSTs to /auth/logout with the session cookie and the csrf header", async () => {
-    const calls = await startApp({ me: SIGNED_IN });
+  it("POSTs to /auth/logout with the bearer token and the csrf header", async () => {
+    const calls = await startApp({ me: SIGNED_IN, token: "tok-1" });
     $("signout").click();
     await flush();
     const logout = calls.find((c) => c.href.endsWith("/auth/logout"));
     expect(logout.options.method).toBe("POST");
-    expect(logout.options.credentials).toBe("include");
+    expect(logout.options.headers.authorization).toBe("Bearer tok-1");
     expect(logout.options.headers["x-bolster-csrf"]).toBe("1");
+    expect(logout.options.credentials).toBeUndefined();
+  });
+
+  it("removes the stored session token once the Worker has dropped the session", async () => {
+    await startApp({ me: SIGNED_IN, token: "tok-1" });
+    expect(localStorage.getItem(TOKEN_KEY)).toBe("tok-1");
+    $("signout").click();
+    await flush();
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+  });
+
+  it("keeps the token when the Worker refuses, so signing out can be retried", async () => {
+    await startApp({ me: SIGNED_IN, token: "tok-1", logout: () => json({ error: "origin not allowed" }, 403) });
+    $("signout").click();
+    await flush();
+    expect(localStorage.getItem(TOKEN_KEY)).toBe("tok-1");
   });
 
   it("puts the page back to the signed-out state and refreshes /usage", async () => {

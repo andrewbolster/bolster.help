@@ -9,6 +9,7 @@ import { renderMarkdown } from "./markdown.js";
 import { DirectMcpClient, McpClient } from "./mcp.js";
 import { upgradeMermaidDiagrams } from "./mermaid.js";
 import { createProxyEngine } from "./providers.js";
+import { apiFetch, claimLoginCode, clearToken } from "./session.js";
 import { assembleToolset } from "./toolset.js";
 
 const el = (id) => document.getElementById(id);
@@ -144,15 +145,14 @@ function render(transcript, history) {
 }
 
 // The allowance belongs to the deployment, not the visitor, so a session is
-// not required to get an answer — but `credentials: "include"` still has to
-// go along, because the model this specific caller resolves to (also
-// reported here — see worker/src/llm.js's usage()) depends on whether this
-// is a signed-in allowlisted visitor, and the cross-origin session cookie
-// won't reach the Worker without it. Failing quietly is deliberate: the
-// Worker re-checks on every call.
+// not required to get an answer — but the session token still goes along,
+// because the model this specific caller resolves to (also reported here —
+// see worker/src/llm.js's usage()) depends on whether this is a signed-in
+// allowlisted visitor. Failing quietly is deliberate: the Worker re-checks on
+// every call.
 async function refreshBudget() {
   try {
-    const response = await fetch(`${API_ORIGIN}/usage`, { credentials: "include" });
+    const response = await apiFetch(`${API_ORIGIN}/usage`);
     if (response.ok) state.budget = await response.json();
   } catch {
     state.budget = null;
@@ -225,10 +225,13 @@ function enableConnections() {
 
 async function refreshAccount() {
   try {
-    const response = await fetch(`${API_ORIGIN}/me`, {
-      credentials: "include",
-    });
-    if (!response.ok) return;
+    const response = await apiFetch(`${API_ORIGIN}/me`);
+    if (!response.ok) {
+      // A token the Worker no longer recognises (expired, or signed out
+      // elsewhere) is dropped, so the page offers Sign in again.
+      if (response.status === 401) clearToken();
+      return;
+    }
     state.user = await response.json();
     el("signin").hidden = true;
     const who = el("whoami");
@@ -247,15 +250,15 @@ async function refreshAccount() {
 // anonymous visitor sees it. The agent is rebuilt because the model it was told
 // about may no longer be the one /usage resolves to.
 async function signOut() {
-  const response = await fetch(`${API_ORIGIN}/auth/logout`, {
+  const response = await apiFetch(`${API_ORIGIN}/auth/logout`, {
     method: "POST",
-    credentials: "include",
     headers: { "x-bolster-csrf": "1" },
   }).catch(() => null);
   if (!response?.ok) {
     el("progress").textContent = "Could not sign out. Try again.";
     return;
   }
+  clearToken();
   state.user = null;
   state.chatId = null;
   el("whoami").hidden = true;
@@ -292,9 +295,8 @@ async function saveChat(history) {
   const status = el("save-state");
   status.textContent = "Saving…";
   try {
-    const response = await fetch(`${API_ORIGIN}/chats`, {
+    const response = await apiFetch(`${API_ORIGIN}/chats`, {
       method: "POST",
-      credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         id: state.chatId,
@@ -571,8 +573,11 @@ export function main() {
   renderSidebar();
   updateClear();
 
-  refreshAccount();
-  startAgent(refreshBudget());
+  // Coming back from GitHub, trade the code in the fragment for a session before
+  // anything asks who this is.
+  const ready = claimLoginCode({ apiOrigin: API_ORIGIN });
+  ready.then(refreshAccount);
+  startAgent(ready.then(refreshBudget));
 
   el("sidebar-toggle").addEventListener("click", (event) => {
     const open = el("sidebar").classList.toggle("open");

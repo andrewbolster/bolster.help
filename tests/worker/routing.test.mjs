@@ -27,7 +27,8 @@ describe("CORS", () => {
     const response = await worker.fetch(request("/mcp-proxy", { method: "OPTIONS" }), fakeEnv());
     assert.equal(response.status, 204);
     assert.equal(response.headers.get("access-control-allow-origin"), "https://bolster.help");
-    assert.equal(response.headers.get("access-control-allow-credentials"), "true");
+    assert.equal(response.headers.get("access-control-allow-credentials"), null);
+    assert.match(response.headers.get("access-control-allow-headers"), /authorization/);
   });
 
   it("echoes an allowlisted origin", async () => {
@@ -73,7 +74,7 @@ describe("routing", () => {
     }
   });
 
-  it("401s /me and /chats without a session cookie", async () => {
+  it("401s /me and /chats without a session", async () => {
     for (const path of ["/me", "/chats", "/chats/abc"]) {
       const response = await worker.fetch(request(path), fakeEnv());
       assert.equal(response.status, 401, `${path} must require a session`);
@@ -116,8 +117,8 @@ describe("proxy guardrails", () => {
 describe("/me", () => {
   it("reports the login and withholds the shared key by default", async () => {
     const env = fakeEnv();
-    const cookie = withSession(env, { github_id: 1, login: "octocat" });
-    const response = await worker.fetch(request("/me", { headers: { cookie } }), env);
+    const authorization = withSession(env, { github_id: 1, login: "octocat" });
+    const response = await worker.fetch(request("/me", { headers: { authorization } }), env);
 
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
@@ -133,8 +134,8 @@ describe("/me", () => {
       LLM_BASE_URL: "https://provider.example/v1",
       GITHUB_ALLOWED_LOGINS: "andrewbolster",
     });
-    const cookie = withSession(env, { github_id: 1, login: "andrewbolster" });
-    const response = await worker.fetch(request("/me", { headers: { cookie } }), env);
+    const authorization = withSession(env, { github_id: 1, login: "andrewbolster" });
+    const response = await worker.fetch(request("/me", { headers: { authorization } }), env);
 
     assert.equal((await response.json()).sharedKey, true);
   });
@@ -148,8 +149,8 @@ describe("/usage", () => {
       LLM_MODEL: "gpt-4o-mini",
       GITHUB_ALLOWED_LOGINS: "andrewbolster",
     });
-    const cookie = withSession(env, { github_id: 1, login: "andrewbolster" });
-    const response = await worker.fetch(request("/usage", { headers: { cookie } }), env);
+    const authorization = withSession(env, { github_id: 1, login: "andrewbolster" });
+    const response = await worker.fetch(request("/usage", { headers: { authorization } }), env);
 
     assert.equal(response.status, 200);
     assert.equal((await response.json()).model, "gpt-4o-mini");

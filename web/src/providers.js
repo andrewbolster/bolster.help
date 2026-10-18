@@ -9,6 +9,8 @@
 // to paste a provider key into someone else's website, which nobody sensible
 // does, in exchange for three engine code paths and a form on the front page.
 
+import { apiFetch } from "./session.js";
+
 // Free-tier replies carry the allowance left after serving them, so `onBudget`
 // keeps the bar current without a second round trip. It also fires on refusal:
 // a 429 is exactly when the number changed and the page most needs to say so.
@@ -17,9 +19,8 @@ export function createProxyEngine(endpoint, onBudget = () => {}) {
     chat: {
       completions: {
         create: async ({ messages, tools, tool_choice, signal }) => {
-          const response = await fetch(endpoint, {
+          const response = await apiFetch(endpoint, {
             method: "POST",
-            credentials: "include",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ messages, tools, tool_choice }),
             signal,

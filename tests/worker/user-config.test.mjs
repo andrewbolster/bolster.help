@@ -24,13 +24,13 @@ const makeEnv = (overrides = {}) =>
 const seen = []; // every response body text, for the never-returned check
 const logged = []; // every console argument, for the never-logged check
 
-async function call(environment, cookie, path, options = {}) {
+async function call(environment, authorization, path, options = {}) {
   const { method = "GET", body, csrf = true, origin = "https://bolster.help", type = "application/json" } = options;
   const response = await worker.fetch(
     new Request(`https://bolster.help${path}`, {
       method,
       headers: {
-        ...(cookie ? { cookie } : {}),
+        ...(authorization ? { authorization } : {}),
         ...(origin ? { origin } : {}),
         ...(csrf ? { "x-bolster-csrf": "1" } : {}),
         ...(body === undefined ? {} : { "content-type": type }),
@@ -55,8 +55,8 @@ function provider(handler) {
 
 const modelsReply = (ids) => new Response(JSON.stringify({ data: ids.map((id) => ({ id })) }));
 
-const save = (environment, cookie, body = {}) =>
-  call(environment, cookie, "/llm-config", {
+const save = (environment, authorization, body = {}) =>
+  call(environment, authorization, "/llm-config", {
     method: "PUT",
     body: { base_url: BASE, api_key: KEY, model: "gpt-x", ...body },
   });
@@ -94,18 +94,20 @@ describe("who may use it", () => {
 
   it("answers 403 to a signed-in login that is not on the allowlist", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, octocat);
-    expect((await call(environment, cookie, "/llm-config")).status).toBe(403);
-    expect((await save(environment, cookie)).status).toBe(403);
-    expect((await call(environment, cookie, "/llm-config/models", { method: "POST", body: {} })).status).toBe(403);
+    const authorization = withSession(environment, octocat);
+    expect((await call(environment, authorization, "/llm-config")).status).toBe(403);
+    expect((await save(environment, authorization)).status).toBe(403);
+    expect((await call(environment, authorization, "/llm-config/models", { method: "POST", body: {} })).status).toBe(
+      403,
+    );
   });
 
   it("fails closed with 503 when USER_CONFIG_KEY is missing or malformed", async () => {
     for (const USER_CONFIG_KEY of [undefined, "", "tooshort", btoa("x".repeat(16))]) {
       const environment = makeEnv({ USER_CONFIG_KEY });
-      const cookie = withSession(environment, andrew);
-      expect((await call(environment, cookie, "/llm-config")).status).toBe(503);
-      expect((await save(environment, cookie)).status).toBe(503);
+      const authorization = withSession(environment, andrew);
+      expect((await call(environment, authorization, "/llm-config")).status).toBe(503);
+      expect((await save(environment, authorization)).status).toBe(503);
     }
   });
 
@@ -126,26 +128,26 @@ describe("CSRF", () => {
     ["a non-JSON content type", { type: "text/plain" }, "content-type must be application/json"],
   ])("rejects a PUT with %s and writes nothing", async (_name, options, error) => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    const response = await call(environment, cookie, "/llm-config", {
+    const authorization = withSession(environment, andrew);
+    const response = await call(environment, authorization, "/llm-config", {
       method: "PUT",
       body: { base_url: BASE, api_key: KEY, model: "gpt-x" },
       ...options,
     });
     expect(response.status).toBe(403);
     expect((await response.json()).error).toBe(error);
-    expect(await (await call(environment, cookie, "/llm-config")).json()).toEqual({ configured: false });
+    expect(await (await call(environment, authorization, "/llm-config")).json()).toEqual({ configured: false });
   });
 
   it("rejects DELETE and model listing without the csrf header", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    await save(environment, cookie);
-    expect((await call(environment, cookie, "/llm-config", { method: "DELETE", csrf: false })).status).toBe(403);
+    const authorization = withSession(environment, andrew);
+    await save(environment, authorization);
+    expect((await call(environment, authorization, "/llm-config", { method: "DELETE", csrf: false })).status).toBe(403);
     expect(
-      (await call(environment, cookie, "/llm-config/models", { method: "POST", body: {}, csrf: false })).status,
+      (await call(environment, authorization, "/llm-config/models", { method: "POST", body: {}, csrf: false })).status,
     ).toBe(403);
-    expect((await (await call(environment, cookie, "/llm-config")).json()).configured).toBe(true);
+    expect((await (await call(environment, authorization, "/llm-config")).json()).configured).toBe(true);
   });
 
   it("allows the preflight for PUT and the csrf header", async () => {
@@ -164,11 +166,11 @@ describe("CSRF", () => {
 describe("saving and reading", () => {
   it("returns only a masked key, and stores only ciphertext", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    const saved = await save(environment, cookie);
+    const authorization = withSession(environment, andrew);
+    const saved = await save(environment, authorization);
     expect(saved.status).toBe(200);
     expect(await saved.json()).toEqual({ configured: true, base_url: BASE, key_last4: "1234", model: "gpt-x" });
-    expect(await (await call(environment, cookie, "/llm-config")).json()).toEqual({
+    expect(await (await call(environment, authorization, "/llm-config")).json()).toEqual({
       configured: true,
       base_url: BASE,
       key_last4: "1234",
@@ -183,8 +185,8 @@ describe("saving and reading", () => {
 
   it("normalises the base URL it stores", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    const saved = await (await save(environment, cookie, { base_url: "https://API.Example.com/v1/" })).json();
+    const authorization = withSession(environment, andrew);
+    const saved = await (await save(environment, authorization, { base_url: "https://API.Example.com/v1/" })).json();
     expect(saved.base_url).toBe(BASE);
   });
 
@@ -200,16 +202,16 @@ describe("saving and reading", () => {
     ["credentials in the URL", { base_url: "https://u:p@api.example.com/v1" }],
   ])("rejects %s and stores nothing", async (_name, override) => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    expect((await save(environment, cookie, override)).status).toBe(400);
-    expect(await (await call(environment, cookie, "/llm-config")).json()).toEqual({ configured: false });
+    const authorization = withSession(environment, andrew);
+    expect((await save(environment, authorization, override)).status).toBe(400);
+    expect(await (await call(environment, authorization, "/llm-config")).json()).toEqual({ configured: false });
   });
 
   it("keeps the stored key when only the model changes", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    await save(environment, cookie);
-    const updated = await call(environment, cookie, "/llm-config", {
+    const authorization = withSession(environment, andrew);
+    await save(environment, authorization);
+    const updated = await call(environment, authorization, "/llm-config", {
       method: "PUT",
       body: { model: "gpt-y" },
     });
@@ -218,16 +220,16 @@ describe("saving and reading", () => {
 
   it("will not reuse the stored key for a different host", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    await save(environment, cookie);
+    const authorization = withSession(environment, andrew);
+    await save(environment, authorization);
     const calls = provider(() => modelsReply(["m"]));
-    const moved = await call(environment, cookie, "/llm-config", {
+    const moved = await call(environment, authorization, "/llm-config", {
       method: "PUT",
       body: { base_url: "https://other.example.com/v1", model: "gpt-x" },
     });
     expect(moved.status).toBe(400);
     expect((await moved.json()).error).toMatch(/api_key required/);
-    const listed = await call(environment, cookie, "/llm-config/models", {
+    const listed = await call(environment, authorization, "/llm-config/models", {
       method: "POST",
       body: { base_url: "https://other.example.com/v1" },
     });
@@ -237,10 +239,10 @@ describe("saving and reading", () => {
 
   it("deletes the config", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    await save(environment, cookie);
-    expect((await call(environment, cookie, "/llm-config", { method: "DELETE" })).status).toBe(204);
-    expect(await (await call(environment, cookie, "/llm-config")).json()).toEqual({ configured: false });
+    const authorization = withSession(environment, andrew);
+    await save(environment, authorization);
+    expect((await call(environment, authorization, "/llm-config", { method: "DELETE" })).status).toBe(204);
+    expect(await (await call(environment, authorization, "/llm-config")).json()).toEqual({ configured: false });
   });
 
   it("keeps each user's config separate", async () => {
@@ -258,18 +260,18 @@ describe("saving and reading", () => {
 
   it("refuses unsupported methods", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    expect((await call(environment, cookie, "/llm-config", { method: "POST", body: {} })).status).toBe(405);
-    expect((await call(environment, cookie, "/llm-config/models")).status).toBe(405);
+    const authorization = withSession(environment, andrew);
+    expect((await call(environment, authorization, "/llm-config", { method: "POST", body: {} })).status).toBe(405);
+    expect((await call(environment, authorization, "/llm-config/models")).status).toBe(405);
   });
 });
 
 describe("listing models", () => {
   it("calls the provider with the typed key and returns sorted, de-duplicated ids", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
+    const authorization = withSession(environment, andrew);
     const calls = provider(() => modelsReply(["b", "a", "a"]));
-    const response = await call(environment, cookie, "/llm-config/models", {
+    const response = await call(environment, authorization, "/llm-config/models", {
       method: "POST",
       body: { base_url: BASE, api_key: KEY },
     });
@@ -282,19 +284,19 @@ describe("listing models", () => {
 
   it("uses the stored key when asked about the stored host", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
-    await save(environment, cookie);
+    const authorization = withSession(environment, andrew);
+    await save(environment, authorization);
     const calls = provider(() => modelsReply(["m"]));
-    const response = await call(environment, cookie, "/llm-config/models", { method: "POST", body: {} });
+    const response = await call(environment, authorization, "/llm-config/models", { method: "POST", body: {} });
     expect(await response.json()).toEqual({ models: ["m"] });
     expect(calls[0].init.headers.authorization).toBe(`Bearer ${KEY}`);
   });
 
   it("accepts a bare array of ids and ignores entries that are not ids", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
+    const authorization = withSession(environment, andrew);
     provider(() => new Response(JSON.stringify(["x", { id: "y" }, { nope: 1 }, 5, null])));
-    const response = await call(environment, cookie, "/llm-config/models", {
+    const response = await call(environment, authorization, "/llm-config/models", {
       method: "POST",
       body: { base_url: BASE, api_key: KEY },
     });
@@ -303,9 +305,9 @@ describe("listing models", () => {
 
   it("caps the list at 500", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
+    const authorization = withSession(environment, andrew);
     provider(() => modelsReply(Array.from({ length: 800 }, (_, i) => `m${String(i).padStart(4, "0")}`)));
-    const response = await call(environment, cookie, "/llm-config/models", {
+    const response = await call(environment, authorization, "/llm-config/models", {
       method: "POST",
       body: { base_url: BASE, api_key: KEY },
     });
@@ -314,7 +316,7 @@ describe("listing models", () => {
 
   it("never calls out for a URL the validator rejects", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
+    const authorization = withSession(environment, andrew);
     const calls = provider(() => modelsReply(["m"]));
     for (const base_url of [
       "https://127.0.0.1/v1",
@@ -322,7 +324,7 @@ describe("listing models", () => {
       "https://x.workers.dev/v1",
       "https://[::1]/v1",
     ]) {
-      const response = await call(environment, cookie, "/llm-config/models", {
+      const response = await call(environment, authorization, "/llm-config/models", {
         method: "POST",
         body: { base_url, api_key: KEY },
       });
@@ -333,9 +335,9 @@ describe("listing models", () => {
 
   it("reports the provider's status and nothing it said", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
+    const authorization = withSession(environment, andrew);
     provider(() => new Response(`bad key ${KEY}`, { status: 401 }));
-    const response = await call(environment, cookie, "/llm-config/models", {
+    const response = await call(environment, authorization, "/llm-config/models", {
       method: "POST",
       body: { base_url: BASE, api_key: KEY },
     });
@@ -345,10 +347,10 @@ describe("listing models", () => {
 
   it("treats a redirect, an oversized reply, bad JSON and a network failure as a 502", async () => {
     const environment = makeEnv();
-    const cookie = withSession(environment, andrew);
+    const authorization = withSession(environment, andrew);
     const attempt = async (handler) => {
       provider(handler);
-      return call(environment, cookie, "/llm-config/models", {
+      return call(environment, authorization, "/llm-config/models", {
         method: "POST",
         body: { base_url: BASE, api_key: KEY },
       });
@@ -375,8 +377,8 @@ describe("the own-key tier", () => {
 
   async function saved(overrides) {
     const environment = makeEnv(overrides);
-    const cookie = withSession(environment, andrew);
-    await save(environment, cookie);
+    const authorization = withSession(environment, andrew);
+    await save(environment, authorization);
     return environment;
   }
 

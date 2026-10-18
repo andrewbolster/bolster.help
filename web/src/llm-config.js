@@ -3,6 +3,8 @@
 // The key is typed here and sent to the Worker; it is never read back. All the
 // page ever learns is the last four characters, shown as "saved ••••1234".
 
+import { authHeader } from "./session.js";
+
 export function mountLlmConfig(container, { apiOrigin, fetchFn = fetch, onChange = () => {} }) {
   const doc = container.ownerDocument;
   const make = (tag, props = {}, ...children) => {
@@ -43,8 +45,7 @@ export function mountLlmConfig(container, { apiOrigin, fetchFn = fetch, onChange
   async function request(method, path, body) {
     const response = await fetchFn(`${apiOrigin}${path}`, {
       method,
-      credentials: "include",
-      headers: { "content-type": "application/json", "x-bolster-csrf": "1" },
+      headers: { ...authHeader(), "content-type": "application/json", "x-bolster-csrf": "1" },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
