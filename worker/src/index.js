@@ -8,16 +8,17 @@
 import { ALLOWED_METHODS, ALLOWED_TOOLS } from "./allowlist.js";
 import { callback, login, logout, session } from "./auth.js";
 import { chats } from "./chats.js";
-import { canUseSharedKey, llm, usage } from "./llm.js";
+import { allowedLogins, canUseOwnKey, canUseSharedKey, llm, usage } from "./llm.js";
+import { allowedOrigins, csrfProblem } from "./origins.js";
 import { parseUpstream } from "./sse.js";
+import { llmConfig } from "./userconfig.js";
 
 export { NeuronBudget } from "./budget.js";
 
-const DEFAULT_ORIGINS = "https://bolster.help,http://localhost:5173";
 const MAX_BODY_BYTES = 16 * 1024;
 
 function corsHeaders(request, env) {
-  const allowed = (env.ALLOWED_ORIGINS ?? DEFAULT_ORIGINS).split(",").map((s) => s.trim());
+  const allowed = allowedOrigins(env);
   const origin = request.headers.get("origin");
   // Exact matches only. A wildcard for *.pages.dev was here while the site ran
   // on Cloudflare Pages previews; it is served from GitHub Pages now, so the
@@ -25,8 +26,8 @@ function corsHeaders(request, env) {
   const ok = origin !== null && allowed.includes(origin);
   return {
     "access-control-allow-origin": ok ? origin : allowed[0],
-    "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
-    "access-control-allow-headers": "content-type, mcp-session-id",
+    "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "access-control-allow-headers": "content-type, mcp-session-id, x-bolster-csrf",
     "access-control-expose-headers": "mcp-session-id",
     "access-control-allow-credentials": "true",
     "access-control-max-age": "86400",
@@ -127,13 +128,32 @@ export default {
 
     if (pathname === "/auth/github/login") return login(request, env);
     if (pathname === "/auth/github/callback") return callback(request, env);
-    if (pathname === "/auth/logout") return logout(request, env, headers);
+    // POST only, and with the same origin and header checks as the other
+    // state-changing routes: the session cookie is SameSite=None, so without
+    // them a cross-site page could sign someone out with a plain request.
+    if (pathname === "/auth/logout") {
+      if (request.method !== "POST") return json({ error: "method not allowed" }, 405, headers);
+      const problem = csrfProblem(request, env);
+      if (problem) return json({ error: problem }, 403, headers);
+      return logout(request, env, headers);
+    }
 
     if (pathname === "/me") {
       const user = await session(request, env);
       return user
-        ? json({ login: user.login, sharedKey: canUseSharedKey(env, user) }, 200, headers)
+        ? json(
+            { login: user.login, sharedKey: canUseSharedKey(env, user), ownKey: await canUseOwnKey(env, user) },
+            200,
+            headers,
+          )
         : json({ error: "not signed in" }, 401, headers);
+    }
+
+    if (pathname === "/llm-config" || pathname === "/llm-config/models") {
+      const user = await session(request, env);
+      if (!user) return json({ error: "not signed in" }, 401, headers);
+      if (!allowedLogins(env).has(user.login.toLowerCase())) return json({ error: "not permitted" }, 403, headers);
+      return llmConfig(request, env, headers, user, pathname);
     }
 
     // Public: it reports the deployment's own allowance plus which model this

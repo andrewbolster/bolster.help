@@ -2,6 +2,7 @@ import { createAgent } from "./agent.js";
 import { API_ORIGIN, PROXY_ENDPOINT } from "./config.js";
 import { createConversations, requestTitle } from "./conversations.js";
 import { download, exportFilename, toJSON, toMarkdown } from "./export.js";
+import { mountLlmConfig } from "./llm-config.js";
 import { renderMarkdown } from "./markdown.js";
 import { McpClient } from "./mcp.js";
 import { upgradeMermaidDiagrams } from "./mermaid.js";
@@ -180,6 +181,20 @@ function renderBudget() {
     : `${Math.round((1 - used) * 100)}% of today's capacity left.`;
 }
 
+// Only offered when /me says this login may keep a model of its own. The page
+// reloads after a change so the agent is rebuilt against the model /usage now
+// reports.
+let modelSettingsReady = false;
+function enableModelSettings() {
+  if (modelSettingsReady) return;
+  modelSettingsReady = true;
+  const dialog = el("llm-dialog");
+  mountLlmConfig(el("llm-config"), { apiOrigin: API_ORIGIN, onChange: () => location.reload() });
+  el("llm-settings").hidden = false;
+  el("llm-settings").addEventListener("click", () => dialog.showModal());
+  el("llm-close").addEventListener("click", () => dialog.close());
+}
+
 async function refreshAccount() {
   try {
     const response = await fetch(`${API_ORIGIN}/me`, {
@@ -191,10 +206,37 @@ async function refreshAccount() {
     const who = el("whoami");
     who.hidden = false;
     who.textContent = `Signed in as ${state.user.login}`;
+    el("signout").hidden = false;
     el("save-chat").hidden = false;
+    if (state.user.ownKey) enableModelSettings();
   } catch {
     // Not signed in, or the Worker isn't reachable. The chat works either way.
   }
+}
+
+// Signing out drops the session on the Worker, then puts the page back as an
+// anonymous visitor sees it. The agent is rebuilt because the model it was told
+// about may no longer be the one /usage resolves to.
+async function signOut() {
+  const response = await fetch(`${API_ORIGIN}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "x-bolster-csrf": "1" },
+  }).catch(() => null);
+  if (!response?.ok) {
+    el("progress").textContent = "Could not sign out. Try again.";
+    return;
+  }
+  state.user = null;
+  state.chatId = null;
+  el("whoami").hidden = true;
+  el("signout").hidden = true;
+  el("signin").hidden = false;
+  el("save-chat").hidden = true;
+  el("llm-settings").hidden = true;
+  el("llm-dialog").close();
+  el("progress").textContent = "";
+  startAgent(refreshBudget());
 }
 
 // What to tell someone when a turn fails. The distinction that matters is
@@ -457,6 +499,17 @@ async function buildAgent(modelPromise) {
   return createAgent({ tools: snapshot.tools, engine, mcp, model });
 }
 
+// Kick off immediately; the first message awaits whatever this settles to.
+// refreshBudget()'s own try/catch means the promise it is given always
+// resolves — a network hiccup degrades to "no model clause" in the system
+// prompt, not a blocked agent.
+function startAgent(budgetPromise) {
+  state.agent = buildAgent(budgetPromise.then(() => state.budget?.model)).catch((err) => {
+    el("progress").textContent = `Could not reach the tools: ${err.message}`;
+    return null;
+  });
+}
+
 export function main() {
   const transcript = el("transcript");
 
@@ -471,16 +524,7 @@ export function main() {
   updateClear();
 
   refreshAccount();
-  const budgetPromise = refreshBudget();
-
-  // Kick off immediately; the first message awaits whatever this settles to.
-  // refreshBudget()'s own try/catch means this always resolves — a network
-  // hiccup degrades to "no model clause" in the system prompt, not a blocked
-  // agent.
-  state.agent = buildAgent(budgetPromise.then(() => state.budget?.model)).catch((err) => {
-    el("progress").textContent = `Could not reach the tools: ${err.message}`;
-    return null;
-  });
+  startAgent(refreshBudget());
 
   el("sidebar-toggle").addEventListener("click", (event) => {
     const open = el("sidebar").classList.toggle("open");
@@ -545,6 +589,8 @@ export function main() {
     const back = encodeURIComponent(location.href);
     location.href = `${API_ORIGIN}/auth/github/login?redirect=${back}`;
   });
+
+  el("signout").addEventListener("click", signOut);
 
   el("save-chat").addEventListener("click", () => saveChat(history));
 

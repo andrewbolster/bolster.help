@@ -57,15 +57,18 @@ jobs:
       # After the deploy, not before: Cloudflare refuses secret edits while the
       # latest Worker version is undeployed (error 10215), and the action's own
       # `secrets` input uploads first.
-      - name: Upload OAuth secrets
+      - name: Upload Worker secrets
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           # GitHub reserves the GITHUB_ prefix for secret names, hence GH_OAUTH_*.
           CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          USER_CONFIG_KEY: ${{ secrets.USER_CONFIG_KEY }}
         run: |
           umask 077
-          jq -n --arg id "$CLIENT_ID" --arg secret "$CLIENT_SECRET" \
-            '{GITHUB_CLIENT_ID: $id, GITHUB_CLIENT_SECRET: $secret}' > "$RUNNER_TEMP/secrets.json"
+          # USER_CONFIG_KEY is left out when empty, never uploaded as a blank.
+          jq -n --arg id "$CLIENT_ID" --arg secret "$CLIENT_SECRET" --arg config "$USER_CONFIG_KEY" \
+            '{GITHUB_CLIENT_ID: $id, GITHUB_CLIENT_SECRET: $secret} + (if $config == "" then {} else {USER_CONFIG_KEY: $config} end)' \
+            > "$RUNNER_TEMP/secrets.json"
           npx --yes wrangler@4.127.1 secret bulk "$RUNNER_TEMP/secrets.json"

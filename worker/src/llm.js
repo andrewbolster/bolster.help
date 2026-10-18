@@ -1,17 +1,20 @@
 // Inference the deployment pays for.
 //
-// Three ways to reach a model, two of which arrive here:
+// Three ways to reach a model:
 //
 //   anonymous          -> Workers AI, on Cloudflare's free daily allocation
 //   allowlisted login  -> the LLM_* secrets, on someone's real credit
-//   anyone, own key    -> never reaches this file; the browser calls the
-//                         provider directly, so we never take custody of it
+//   allowlisted login
+//   with a saved key   -> the base URL, key and model they saved (userconfig.js),
+//                         on their own credit
 //
-// Both paths that land here spend money that is not the caller's, so the model
-// is pinned server-side in each — letting a request name it invites picking the
-// most expensive one available.
+// The first two spend money that is not the caller's, so the model is pinned
+// server-side in each — letting a request name it invites picking the most
+// expensive one available. A saved config pins its own model the same way.
 
 import { budgetOf } from "./budget.js";
+import { parseBaseUrl, readCapped, safeFetch } from "./ssrf.js";
+import { configKey, loadOwnConfig, readOwnKey } from "./userconfig.js";
 import { classify, FREE_TIER_MODEL, freeTierEnabled, MAX_OUTPUT_TOKENS, runFreeTier } from "./workers-ai.js";
 
 // Reject before parsing: a Worker has a few milliseconds of CPU, and
@@ -44,6 +47,8 @@ const MAX_CONTENT_CHARS = 400_000;
 // not get shorter answers than a visitor.
 const MAX_SHARED_OUTPUT_TOKENS = MAX_OUTPUT_TOKENS;
 
+const MAX_OWN_REPLY_BYTES = 8 * 1024 * 1024;
+
 const json = (body, status, headers) =>
   new Response(JSON.stringify(body), {
     status,
@@ -68,10 +73,23 @@ export function canUseSharedKey(env, user) {
   return Boolean(user) && allowedLogins(env).has(user.login.toLowerCase());
 }
 
-// Preference, not permission: the shared key is a real budget and the free
-// tier is a shared allowance, so an allowlisted account should spend the
-// former and leave the latter for visitors.
-export function resolveTier(env, user) {
+// The same allowlist gates saving a key of your own, and the feature is off
+// unless USER_CONFIG_KEY is set, so a deployment without it fails closed.
+export async function canUseOwnKey(env, user) {
+  if (!user || !allowedLogins(env).has(user.login.toLowerCase())) return false;
+  return Boolean(await configKey(env));
+}
+
+// The saved config the caller's next turn would use, or null.
+export async function ownConfigFor(env, user) {
+  return (await canUseOwnKey(env, user)) ? loadOwnConfig(env, user) : null;
+}
+
+// Preference, not permission: a key of your own costs the deployment nothing,
+// the shared key is a real budget and the free tier is a shared allowance, so
+// each account should spend the cheapest-to-others option it has.
+export function resolveTier(env, user, own = null) {
+  if (own) return "own";
   if (canUseSharedKey(env, user)) return "shared";
   if (freeTierEnabled(env)) return "free";
   return null;
@@ -121,6 +139,45 @@ async function relayToProvider(env, body, headers) {
     status: 200,
     headers: { ...headers, "content-type": "application/json" },
   });
+}
+
+async function relayOwn(env, user, body, headers) {
+  let own;
+  try {
+    own = await readOwnKey(env, user);
+  } catch (err) {
+    console.error("own key unreadable:", err.name);
+    return json({ error: "saved key cannot be read, save it again", reason: "config_unreadable" }, 500, headers);
+  }
+
+  let upstream;
+  let text;
+  try {
+    upstream = await safeFetch(
+      `${parseBaseUrl(own.baseUrl)}/chat/completions`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${own.apiKey}` },
+        body: JSON.stringify({
+          model: own.model,
+          messages: body.messages,
+          ...(body.tools ? { tools: body.tools } : {}),
+          ...(body.tool_choice ? { tool_choice: body.tool_choice } : {}),
+        }),
+      },
+      { timeoutMs: 120_000 },
+    );
+    text = await readCapped(upstream, MAX_OWN_REPLY_BYTES);
+  } catch (err) {
+    console.error("own-key provider failed:", err.name);
+    return json({ error: "provider unreachable", reason: "provider_failed" }, 502, headers);
+  }
+  if (!upstream.ok) {
+    console.error("own-key provider failed:", upstream.status);
+    return json({ error: `provider HTTP ${upstream.status}` }, 502, headers);
+  }
+  console.log("LLM reply (own):", { status: upstream.status });
+  return new Response(text, { status: 200, headers: { ...headers, "content-type": "application/json" } });
 }
 
 async function serveFreeTier(env, body, headers) {
@@ -183,7 +240,8 @@ export async function llm(request, env, headers, user) {
 
   // Cheapest check first: an unauthorised caller must not be able to make the
   // Worker buffer a megabyte before being turned away.
-  const tier = resolveTier(env, user);
+  const own = await ownConfigFor(env, user);
+  const tier = resolveTier(env, user, own);
   if (!tier) return json({ error: "not permitted" }, 403, headers);
 
   const raw = await request.text();
@@ -217,6 +275,7 @@ export async function llm(request, env, headers, user) {
     message: lastUserMessage(body.messages),
   });
 
+  if (tier === "own") return relayOwn(env, user, body, headers);
   return tier === "shared" ? relayToProvider(env, body, headers) : serveFreeTier(env, body, headers);
 }
 
@@ -230,6 +289,9 @@ export async function llm(request, env, headers, user) {
 // included either way. Still public on purpose — it reports what this caller
 // would get, not anything that gates access.
 export async function usage(env, user) {
+  const own = await ownConfigFor(env, user);
+  // A key of your own spends no allowance of ours, so there is no bar to draw.
+  if (own) return { tier: "own", enabled: false, model: own.model };
   const tier = resolveTier(env, user);
   const model =
     tier === "shared"

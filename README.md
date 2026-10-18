@@ -15,13 +15,42 @@ leaving the account without a payment method.
 An earlier design let visitors paste their own provider key. It was removed: it
 asked people to hand a credential to someone else's website, which nobody
 sensible does, in exchange for three engine code paths and a form standing
-between the visitor and the chat.
+between the visitor and the chat. A narrower version came back for allowlisted
+logins only: see "A model of your own".
 
 Signing in adds one thing — somewhere to keep the conversation. No OAuth scopes
 are requested and the GitHub token is discarded after the profile read. If the
 account is named in `GITHUB_ALLOWED_LOGINS` and the `LLM_*` secrets are set,
 `/llm` quietly uses those instead; there is no UI for it, and `/llm` re-decides
 on every call.
+
+## A model of your own
+
+Logins in `GITHUB_ALLOWED_LOGINS` can point the chat at their own
+OpenAI-compatible provider (a base URL, an API key and a model) under "Your
+model". It is off unless the `USER_CONFIG_KEY` secret is set. With it on, `/llm`
+prefers a saved config over the shared key and the free tier, and the spend is
+the user's own, so it is not counted against the free allocation.
+
+- **Storage.** One row per user in D1 (`user_llm_config`; created on first use
+  as well as in `schema.sql`, so a deploy needs no migration). The key is
+  AES-GCM ciphertext under `USER_CONFIG_KEY`, with the user id as additional
+  data so a row cannot be decrypted for another user. The page is only ever told
+  the last four characters, and no route returns the key or logs it.
+- **Any HTTPS host.** The Worker will call any public HTTPS base URL a
+  permitted user saves. It accepts only a public DNS name on port 443: no IP
+  literals in any spelling, no `localhost`, `.local`, `.internal`, `.workers.dev`
+  or `.pages.dev`, no credentials in the URL. It never follows a redirect and
+  applies a deadline and size caps, on save, when listing models and on every
+  relay. A stored key is never sent to a different host than it was saved for. A
+  name that resolves to a private address cannot be detected from inside a
+  Worker, whose egress is not on a private network.
+- **CSRF.** The session cookie is `SameSite=None`, so changes also need an
+  allowed `Origin`, a JSON body and an `x-bolster-csrf` header. Sign-out
+  (`POST /auth/logout`, the page's "Sign out") gets the same origin and header
+  checks, so a cross-site request cannot end someone's session.
+- **Follow-up.** Further hardening for allowlisted logins using any HTTPS host
+  is tracked in [#36](https://github.com/andrewbolster/bolster.help/issues/36).
 
 The model was picked by measuring tool selection against the question fixtures,
 not by price. It scored 12/12 on the cases that matter — including the three
@@ -261,8 +290,10 @@ only reads the public profile.
 Add the OAuth app's client id and secret as `GH_OAUTH_CLIENT_ID` and
 `GH_OAUTH_CLIENT_SECRET` in the `cloudflare-worker` environment's secrets
 (GitHub reserves the `GITHUB_` prefix). `worker.yml` deploys them to the Worker
-as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` on its next run. The LLM
-secrets are set directly:
+as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` on its next run. To enable
+"Your model", add a `USER_CONFIG_KEY` secret to the same environment (generate
+it with `openssl rand -base64 32`); leaving it unset turns the feature off. The
+LLM secrets are set directly:
 
 ```sh
 cd worker
