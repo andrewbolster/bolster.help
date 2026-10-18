@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.11] - 2026-10-18
+
+- Upload the OAuth secrets after the deploy, not before (#35)
+
+
 ## [0.1.10] - 2026-10-18
 
 - Deploy the GitHub OAuth secrets with the Worker; fix the callback docs (#34)
