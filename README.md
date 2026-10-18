@@ -92,6 +92,40 @@ The model call is best-effort: no capacity, a refusal, or a reply that is
 plainly not a title all leave the opening question in place, and nothing
 surfaces to the visitor, because nothing they care about has failed.
 
+## Connections
+
+Signed-in visitors can sign in to other MCP servers, mcp.bolster.online first,
+and use everything those servers list as tools in the chat. The whole OAuth flow
+runs in the page; the Worker is not involved and never sees a token.
+
+1. **Discover.** From the server URL alone: its protected-resource metadata
+   (RFC 9728, from the `WWW-Authenticate` hint when the page can read it, else
+   the well-known URLs), then its authorization server's metadata (RFC 8414,
+   with OpenID fallback). Mismatched resource or issuer, non-https endpoints
+   and a server without PKCE `S256` are refused.
+2. **Register.** Dynamic client registration (RFC 7591), once per server, as a
+   public client.
+3. **Authorize.** Authorization code with PKCE, `state` and the `resource`
+   parameter. You are told which server and which authorization server you are
+   being sent to before anything leaves the page. The static page
+   `oauth/callback.html` finishes the sign-in.
+4. **Use.** Tokens are kept in this browser, attached only to requests for the
+   server's own origin, never followed along a redirect, refreshed before they
+   expire, and removed when you sign out.
+
+A connected server's tools are prefixed with its id so two servers cannot
+collide. mcp.bolster.online's authenticated endpoint re-exports every public
+tool, so when it is connected it replaces the public catalogue rather than
+adding to it.
+
+The trade-offs are deliberate. Tokens in the page are reachable by any script
+that runs there, so a cross-site scripting bug would expose them. Anyone can add
+a server, and a server you connect to can return text that tries to steer the
+model. Every tool a server lists is sent to the model on every turn, so a large
+server makes every reply slower and costlier. A server also has to allow
+requests from a web page (CORS), including exposing `mcp-session-id`; one that
+does not cannot be used here, and the page says so.
+
 ## Limits, and which of them are real
 
 Numbers that bound a request are easy to add and hard to notice once they are
@@ -122,8 +156,9 @@ tests/     vitest projects: unit, dom, worker
 
 `web/` is plain ES modules under `web/src/`: `app.js` (page and send loop),
 `agent.js` (the tool-call loop), `mcp.js`, `catalogue.js`, `persona.js`,
-`markdown.js`, `mermaid.js`. Contributor notes and the invariants to preserve
-are in `AGENTS.md`.
+`markdown.js`, `mermaid.js`, and for connections `oauth.js`, `connections.js`,
+`toolset.js`. Contributor notes and the invariants to preserve are in
+`AGENTS.md`.
 
 ## Rendering and trust boundaries
 

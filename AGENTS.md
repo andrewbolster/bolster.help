@@ -47,6 +47,8 @@ Skipped tests state why they were skipped. A green run says which assumptions we
 - **Every tool is sent every turn.** Adding or renaming a tool raises the cost of every request; check README's "Every tool is sent every turn" before growing the catalogue.
 - **`tools.json` and the allowlist are hand-maintained and can drift silently.** Change a server tool, run `npm run refresh-tools`, then update the allowlist and its fixture. Every allowlisted tool needs a fixture. `bolster_get_precipitation` (metered third-party key) and `send_contact_message` (delivers real mail) stay excluded by name; a test enforces it.
 - **A saved API key is never returned or logged.** `/llm-config` answers with the last four characters only; keep the key and provider error bodies out of responses and `console` output, and send a user-supplied URL only through `ssrf.js`.
+- **MCP connection tokens stay in the browser, bound to their server's origin.** `connections.js` attaches a token only to requests for the origin it was issued for, refuses redirects, and sign-out clears everything. Never send one to the Worker, log it or put it in a URL.
+- **Calls to a connected server carry no cookies.** Leave `credentials: "include"` off them so the Worker's session cookie never reaches another server.
 - **`MCP_ORIGIN` is used verbatim as the upstream URL.** Keep the form in `wrangler.toml` (with its trailing slash).
 - **Durable Object is declared with `exports`, not `[[migrations]]`.** See README "Deploying" for the failure that led to this; don't "tidy" it.
 - **`worker/wrangler.test.toml` is production config minus bindings with no local simulator** (Workers AI would demand an API token). `tests/unit/config.test.mjs` keeps the two in step.

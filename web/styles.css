@@ -669,7 +669,8 @@ td {
   font-size: 1rem;
 }
 
-#llm-config label {
+#llm-config label,
+#connections-panel label {
   display: block;
   margin-bottom: 0.75rem;
   color: var(--muted);
@@ -677,7 +678,8 @@ td {
 }
 
 #llm-config input,
-#llm-config select {
+#llm-config select,
+#connections-panel input {
   display: block;
   box-sizing: border-box;
   width: 100%;
@@ -690,6 +692,17 @@ td {
   font: inherit;
 }
 
-#llm-config [data-state="error"] {
+#llm-config [data-state="error"],
+#connections-panel [data-state="error"] {
   color: #b42318;
+}
+
+.connections {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.connections li {
+  margin-bottom: 0.5rem;
 }
