@@ -4,15 +4,18 @@
 // bearing on inference, which always runs in the browser. So the only scope
 // requested is the default (public profile) — no repo, no Copilot entitlement.
 
+import { csrfProblem } from "./origins.js";
+
 const SESSION_TTL = 60 * 60 * 24 * 30;
 const STATE_TTL = 600;
-const COOKIE = "bolster_session";
+// The shortest TTL KV accepts. The code is only the hand-off from the redirect
+// to the page, which exchanges it straight away.
+const CODE_TTL = 60;
 
-const cookieValue = (request, name) =>
-  (request.headers.get("cookie") ?? "")
-    .split(";")
-    .map((part) => part.trim().split("="))
-    .find(([key]) => key === name)?.[1] ?? null;
+// The session travels as `Authorization: Bearer <token>`, never as a cookie:
+// the page and this Worker are on different sites, and browsers that block
+// third-party cookies would drop one silently.
+const bearerToken = (request) => /^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1] ?? null;
 
 // Only bounce back to an origin we already serve: an unchecked redirect
 // parameter is an open redirect wearing a login button.
@@ -87,29 +90,38 @@ export async function callback(request, env) {
     expirationTtl: SESSION_TTL,
   });
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      location: safeRedirect(back, env),
-      "set-cookie": `${COOKIE}=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${SESSION_TTL}`,
-    },
-  });
+  // The page gets a single-use code in the URL fragment (never sent to a server,
+  // and never the session token itself) and trades it at POST /auth/session.
+  const handoff = crypto.randomUUID();
+  await env.SESSIONS.put(`code:${handoff}`, token, { expirationTtl: CODE_TTL });
+  const destination = new URL(safeRedirect(back, env));
+  destination.hash = new URLSearchParams({ code: handoff }).toString();
+
+  return new Response(null, { status: 302, headers: { location: destination.toString() } });
+}
+
+export async function exchange(request, env, headers) {
+  const reply = (body, status) =>
+    new Response(JSON.stringify(body), { status, headers: { ...headers, "content-type": "application/json" } });
+  const problem = csrfProblem(request, env, { json: true });
+  if (problem) return reply({ error: problem }, 403);
+
+  const code = (await request.json().catch(() => null))?.code;
+  if (typeof code !== "string" || !code) return reply({ error: "code required" }, 400);
+  const token = await env.SESSIONS.get(`code:${code}`);
+  if (!token) return reply({ error: "invalid or expired code" }, 400);
+  await env.SESSIONS.delete(`code:${code}`);
+  return reply({ token }, 200);
 }
 
 export async function logout(request, env, headers) {
-  const token = cookieValue(request, COOKIE);
+  const token = bearerToken(request);
   if (token) await env.SESSIONS.delete(`session:${token}`);
-  return new Response(null, {
-    status: 204,
-    headers: {
-      ...headers,
-      "set-cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0`,
-    },
-  });
+  return new Response(null, { status: 204, headers });
 }
 
 export async function session(request, env) {
-  const token = cookieValue(request, COOKIE);
+  const token = bearerToken(request);
   if (!token) return null;
   const raw = await env.SESSIONS.get(`session:${token}`);
   return raw ? JSON.parse(raw) : null;

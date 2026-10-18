@@ -15,6 +15,7 @@ web/                 static frontend, served as-is by GitHub Pages (no build ste
   src/markdown.js    renderMarkdown (hand-rolled; see invariants)
   src/mermaid.js     diagram upgrade (the one exception; see invariants)
   src/llm-config.js  the "Your model" settings form
+  src/session.js     the bearer session: apiFetch, the sign-in code exchange
   src/config.js      API_ORIGIN / PROXY_ENDPOINT
   src/tools.json     manual snapshot of the server's tools/list
   src/fixtures.json  one fixture per allowlisted tool
@@ -41,14 +42,14 @@ Skipped tests state why they were skipped. A green run says which assumptions we
 
 - **No build step for `web/`.** Plain ES modules served directly. Don't add a bundler or a transpile-only syntax; a runtime dependency must come from a pinned CDN ESM import.
 - **Model output never reaches `innerHTML`.** `renderMarkdown` builds DOM nodes. The single, deliberate exception is `mermaid.js`: Mermaid's `render()` output is parsed with `DOMParser` into a detached document and imported (still never `innerHTML` on the live page), with `securityLevel: "strict"`, and the library is pinned to a major (`mermaid@11`). Input is public, anonymous and unmoderated, so keep it that way.
-- **Cross-origin fetches need `credentials: "include"`.** The page (`bolster.help`) and the API (a `workers.dev` Worker) are always different origins. Anything that should see the session (`/usage`, chats, auth) must set it, and the session cookie is issued `SameSite=None; Secure`. Chatting itself uses no cookie. Locally, cookies won't flow between ports 5173 and 8788, so auth is only testable behind one origin.
+- **The session is a bearer token, never a cookie.** The page (`bolster.help`) and the API (a `workers.dev` Worker) are always different sites, and a cookie from the API is third-party, which many browsers block. Calls that should see the session go through `apiFetch` (or `authHeader`) in `session.js`, which adds `Authorization: Bearer`; the Worker reads only that header. The token reaches the page via a single-use code in the URL fragment, traded at `POST /auth/session`. Chatting itself needs no session.
 - **`/usage` returns the resolved model.** The UI and the assistant's self-description read the model from it; don't hard-code a model name in the page.
 - **`full_tool_documentation` has an `assistant` alias, and deliberately not `bolster`.** The model asks for docs about itself under that name; `bolster` is ambiguous (package vs. server vs. site).
 - **Every tool is sent every turn.** Adding or renaming a tool raises the cost of every request; check README's "Every tool is sent every turn" before growing the catalogue.
 - **`tools.json` and the allowlist are hand-maintained and can drift silently.** Change a server tool, run `npm run refresh-tools`, then update the allowlist and its fixture. Every allowlisted tool needs a fixture. `bolster_get_precipitation` (metered third-party key) and `send_contact_message` (delivers real mail) stay excluded by name; a test enforces it.
 - **A saved API key is never returned or logged.** `/llm-config` answers with the last four characters only; keep the key and provider error bodies out of responses and `console` output, and send a user-supplied URL only through `ssrf.js`.
 - **MCP connection tokens stay in the browser, bound to their server's origin.** `connections.js` attaches a token only to requests for the origin it was issued for, refuses redirects, and sign-out clears everything. Never send one to the Worker, log it or put it in a URL.
-- **Calls to a connected server carry no cookies.** Leave `credentials: "include"` off them so the Worker's session cookie never reaches another server.
+- **The Worker session token goes only to the Worker.** Use `apiFetch` for `API_ORIGIN` calls and never attach it to a call to a connected server.
 - **`MCP_ORIGIN` is used verbatim as the upstream URL.** Keep the form in `wrangler.toml` (with its trailing slash).
 - **Durable Object is declared with `exports`, not `[[migrations]]`.** See README "Deploying" for the failure that led to this; don't "tidy" it.
 - **`worker/wrangler.test.toml` is production config minus bindings with no local simulator** (Workers AI would demand an API token). `tests/unit/config.test.mjs` keeps the two in step.

@@ -167,21 +167,20 @@ describe("the MCP origin", () => {
 
 describe("the deployed Worker", () => {
   gate(it, needsDeployment)("serves the proxy and the page from one origin", async () => {
-    // SameSite=Lax means the session cookie only travels if the page and the
-    // Worker share an origin. In development they do not, which is why auth is
-    // untestable there; in production this is what makes it work.
+    // The session is a bearer token, so an anonymous request carries nothing and
+    // /me must refuse it.
     const response = await fetch(`${deployedOrigin}/me`);
     assert.equal(response.status, 401, "/me should refuse an unauthenticated caller");
     assert.equal(new URL(`${deployedOrigin}/me`).origin, new URL(deployedOrigin).origin);
   });
 
   // Marked todo rather than skipped: unlike the cases above, no environment
-  // variable makes this run. Driving it needs a signed-in session cookie, and
+  // variable makes this run. Driving it needs a signed-in session token, and
   // minting one means a human at a browser. Writing it means either a stored
   // session fixture or a headless login against GitHub — a decision not yet
   // taken, so the gap is recorded rather than papered over.
   it.todo(
-    "persists a conversation across a session — needs a signed-in session cookie, blocked on the OAuth round-trip below",
+    "persists a conversation across a session — needs a signed-in session token, blocked on the OAuth round-trip below",
   );
 });
 

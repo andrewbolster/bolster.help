@@ -6,7 +6,7 @@
 // reaches it unfiltered. That is a known, accepted trade.
 
 import { ALLOWED_METHODS, ALLOWED_TOOLS } from "./allowlist.js";
-import { callback, login, logout, session } from "./auth.js";
+import { callback, exchange, login, logout, session } from "./auth.js";
 import { chats } from "./chats.js";
 import { allowedLogins, canUseOwnKey, canUseSharedKey, llm, usage } from "./llm.js";
 import { allowedOrigins, csrfProblem } from "./origins.js";
@@ -27,9 +27,8 @@ function corsHeaders(request, env) {
   return {
     "access-control-allow-origin": ok ? origin : allowed[0],
     "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "access-control-allow-headers": "content-type, mcp-session-id, x-bolster-csrf",
+    "access-control-allow-headers": "content-type, authorization, mcp-session-id, x-bolster-csrf",
     "access-control-expose-headers": "mcp-session-id",
-    "access-control-allow-credentials": "true",
     "access-control-max-age": "86400",
     vary: "origin",
   };
@@ -128,9 +127,12 @@ export default {
 
     if (pathname === "/auth/github/login") return login(request, env);
     if (pathname === "/auth/github/callback") return callback(request, env);
-    // POST only, and with the same origin and header checks as the other
-    // state-changing routes: the session cookie is SameSite=None, so without
-    // them a cross-site page could sign someone out with a plain request.
+    if (pathname === "/auth/session") {
+      if (request.method !== "POST") return json({ error: "method not allowed" }, 405, headers);
+      return exchange(request, env, headers);
+    }
+    // POST only, with the same origin and header checks as the other
+    // state-changing routes.
     if (pathname === "/auth/logout") {
       if (request.method !== "POST") return json({ error: "method not allowed" }, 405, headers);
       const problem = csrfProblem(request, env);

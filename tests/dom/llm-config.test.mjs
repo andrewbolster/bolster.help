@@ -68,10 +68,18 @@ describe("loading", () => {
     expect(button("Remove").hidden).toBe(false);
   });
 
-  it("sends the session cookie and the csrf header", async () => {
+  it("sends the session token as a bearer, with the csrf header and no cookie", async () => {
+    localStorage.setItem("bolster.help/session", "tok-1");
     const { calls } = await mount({ "GET /llm-config": NONE });
-    expect(calls[0].init.credentials).toBe("include");
+    expect(calls[0].init.headers.authorization).toBe("Bearer tok-1");
     expect(calls[0].init.headers["x-bolster-csrf"]).toBe("1");
+    expect(calls[0].init.credentials).toBeUndefined();
+  });
+
+  it("sends no Authorization header when there is no session", async () => {
+    localStorage.removeItem("bolster.help/session");
+    const { calls } = await mount({ "GET /llm-config": NONE });
+    expect(calls[0].init.headers.authorization).toBeUndefined();
   });
 
   it("says so when the settings cannot be loaded", async () => {

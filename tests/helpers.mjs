@@ -69,9 +69,10 @@ export const fakeEnv = (overrides = {}) => ({
 });
 
 // Signs a session in so `/me` and `/llm` see a user without an OAuth round-trip.
+// Returns the `Authorization` header value that carries it.
 export function withSession(env, user, token = "test-token") {
   env.SESSIONS.store.set(`session:${token}`, JSON.stringify(user));
-  return `bolster_session=${token}`;
+  return `Bearer ${token}`;
 }
 
 export function request(path, { method = "GET", body, origin = "https://bolster.help", headers = {} } = {}) {

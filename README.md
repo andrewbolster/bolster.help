@@ -45,10 +45,10 @@ the user's own, so it is not counted against the free allocation.
   relay. A stored key is never sent to a different host than it was saved for. A
   name that resolves to a private address cannot be detected from inside a
   Worker, whose egress is not on a private network.
-- **CSRF.** The session cookie is `SameSite=None`, so changes also need an
-  allowed `Origin`, a JSON body and an `x-bolster-csrf` header. Sign-out
-  (`POST /auth/logout`, the page's "Sign out") gets the same origin and header
-  checks, so a cross-site request cannot end someone's session.
+- **CSRF.** The session is a bearer token, not a cookie, so a cross-site form
+  cannot ride it. As a second line, changes also need an allowed `Origin`, a
+  JSON body and an `x-bolster-csrf` header. Sign-out (`POST /auth/logout`, the
+  page's "Sign out") gets the same origin and header checks.
 - **Follow-up.** Further hardening for allowlisted logins using any HTTPS host
   is tracked in [#36](https://github.com/andrewbolster/bolster.help/issues/36).
 
@@ -167,9 +167,19 @@ anonymous and unmoderated. `renderMarkdown` never assigns to `innerHTML`; it
 builds DOM nodes. Diagrams are the one exception, kept isolated in
 `web/src/mermaid.js`: Mermaid (pinned to `mermaid@11` from jsDelivr) runs with
 `securityLevel: "strict"`, and its SVG is parsed with `DOMParser` and imported
-as nodes instead of being injected as a string. The page and the API sit on
-different origins, so calls that need the session cookie use
-`credentials: "include"`, and the cookie is `SameSite=None; Secure`.
+as nodes instead of being injected as a string.
+
+**Sign-in and the session.** The page and the API sit on different sites, and a
+cookie set by the API would be a third-party cookie, which Safari, Firefox,
+Brave and Chrome's private mode block. So there is no cookie. After GitHub, the
+Worker redirects back to the page with a single-use code in the URL fragment
+(valid for 60 seconds, never the session itself); the page trades it at
+`POST /auth/session` for a session token, strips the fragment, and sends the
+token as `Authorization: Bearer` on every call to the Worker (`session.js`). The
+token lives in `localStorage`, so a script injected into the page could read it:
+that is the cost of working in every browser, and why nothing from a model or a
+connected server is ever treated as markup. Signing out deletes the session on
+the Worker and the token in the page.
 
 ## Observability
 
@@ -277,9 +287,9 @@ for that reason; drift there is silent at runtime.
 cd worker && npx wrangler dev --port 8788 --local
 ```
 
-Session cookies will not flow between the static server on 5173 and wrangler on
-8788 under `SameSite=Lax`, so auth is only testable once both sit behind one
-origin — which they do in production.
+The session is a bearer token, so the static server on 5173 can call wrangler on
+8788 directly. Signing in locally still needs a GitHub OAuth app whose callback
+is `http://127.0.0.1:8788/auth/github/callback`.
 
 ## Deploying
 

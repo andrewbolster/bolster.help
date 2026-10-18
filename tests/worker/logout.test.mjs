@@ -1,6 +1,5 @@
 // /auth/logout is POST-only and carries the same origin and header checks as the
-// other state-changing routes: the session cookie is SameSite=None, so without
-// them a cross-site page could sign someone out with a plain request.
+// other state-changing routes, even though the session is a bearer token.
 
 import { describe, expect, it } from "vitest";
 import worker from "../../worker/src/index.js";
@@ -9,12 +8,12 @@ import { fakeEnv, withSession } from "../helpers.mjs";
 const user = { github_id: 1, login: "octocat" };
 const SESSION_KEY = "session:test-token";
 
-function logout(environment, cookie, { method = "POST", origin = "https://bolster.help", csrf = true } = {}) {
+function logout(environment, authorization, { method = "POST", origin = "https://bolster.help", csrf = true } = {}) {
   return worker.fetch(
     new Request("https://bolster.help/auth/logout", {
       method,
       headers: {
-        ...(cookie ? { cookie } : {}),
+        ...(authorization ? { authorization } : {}),
         ...(origin ? { origin } : {}),
         ...(csrf ? { "x-bolster-csrf": "1" } : {}),
       },
@@ -24,20 +23,18 @@ function logout(environment, cookie, { method = "POST", origin = "https://bolste
 }
 
 describe("/auth/logout", () => {
-  it("deletes the session and clears the cookie", async () => {
+  it("deletes the session, so the same token is refused afterwards", async () => {
     const environment = fakeEnv();
-    const cookie = withSession(environment, user);
+    const authorization = withSession(environment, user);
     expect(environment.SESSIONS.store.has(SESSION_KEY)).toBe(true);
 
-    const response = await logout(environment, cookie);
+    const response = await logout(environment, authorization);
     expect(response.status).toBe(204);
+    expect(response.headers.get("set-cookie")).toBeNull();
     expect(environment.SESSIONS.store.has(SESSION_KEY)).toBe(false);
-    const setCookie = response.headers.get("set-cookie");
-    expect(setCookie).toContain("bolster_session=;");
-    expect(setCookie).toContain("Max-Age=0");
 
     const me = await worker.fetch(
-      new Request("https://bolster.help/me", { headers: { cookie, origin: "https://bolster.help" } }),
+      new Request("https://bolster.help/me", { headers: { authorization, origin: "https://bolster.help" } }),
       environment,
     );
     expect(me.status).toBe(401);
@@ -49,10 +46,9 @@ describe("/auth/logout", () => {
 
   it("rejects a GET and leaves the session alone", async () => {
     const environment = fakeEnv();
-    const cookie = withSession(environment, user);
-    const response = await logout(environment, cookie, { method: "GET" });
+    const authorization = withSession(environment, user);
+    const response = await logout(environment, authorization, { method: "GET" });
     expect(response.status).toBe(405);
-    expect(response.headers.get("set-cookie")).toBeNull();
     expect(environment.SESSIONS.store.has(SESSION_KEY)).toBe(true);
   });
 
@@ -62,11 +58,10 @@ describe("/auth/logout", () => {
     ["no csrf header", { csrf: false }, "missing csrf header"],
   ])("rejects a POST with %s and leaves the session alone", async (_name, options, error) => {
     const environment = fakeEnv();
-    const cookie = withSession(environment, user);
-    const response = await logout(environment, cookie, options);
+    const authorization = withSession(environment, user);
+    const response = await logout(environment, authorization, options);
     expect(response.status).toBe(403);
     expect((await response.json()).error).toBe(error);
-    expect(response.headers.get("set-cookie")).toBeNull();
     expect(environment.SESSIONS.store.has(SESSION_KEY)).toBe(true);
   });
 });
