@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.14] - 2026-10-18
+
+- Sign in with a bearer token instead of a cookie (#40)
+
+
 ## [0.1.13] - 2026-10-18
 
 - Let signed-in visitors connect to other MCP servers over OAuth (#38)
