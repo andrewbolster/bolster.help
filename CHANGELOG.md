@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.13] - 2026-10-18
+
+- Let signed-in visitors connect to other MCP servers over OAuth (#38)
+
+
 ## [0.1.12] - 2026-10-18
 
 - Let allowlisted logins use a model of their own; add Sign out (#37)
