@@ -54,3 +54,10 @@ jobs:
           # Pinned: nothing else in the repo pins a wrangler version, and this
           # is the one deploying to production.
           wranglerVersion: "4.127.1"
+          secrets: |
+            GITHUB_CLIENT_ID
+            GITHUB_CLIENT_SECRET
+        env:
+          # GitHub reserves the GITHUB_ prefix for secret names, hence GH_OAUTH_*.
+          GITHUB_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}

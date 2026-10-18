@@ -252,15 +252,20 @@ Storage and the Pages project already exist on the account, and their ids are in
 
 **1. GitHub OAuth app** — register at
 `github.com/settings/developers`. Homepage `https://bolster.help`, callback
-`https://bolster.help/auth/github/callback`. Request no scopes; the app only
-reads the public profile.
+`https://bolster-help.andrewbolster.workers.dev/auth/github/callback` (the
+Worker's own origin, which is where sign-in runs). Request no scopes; the app
+only reads the public profile.
 
 **2. Worker secrets**
 
+Add the OAuth app's client id and secret as `GH_OAUTH_CLIENT_ID` and
+`GH_OAUTH_CLIENT_SECRET` in the `cloudflare-worker` environment's secrets
+(GitHub reserves the `GITHUB_` prefix). `worker.yml` deploys them to the Worker
+as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` on its next run. The LLM
+secrets are set directly:
+
 ```sh
 cd worker
-npx wrangler secret put GITHUB_CLIENT_ID
-npx wrangler secret put GITHUB_CLIENT_SECRET
 npx wrangler secret put LLM_BASE_URL
 npx wrangler secret put LLM_API_KEY
 npx wrangler secret put LLM_MODEL
