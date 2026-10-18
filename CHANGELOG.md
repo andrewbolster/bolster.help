@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.10] - 2026-10-18
+
+- Deploy the GitHub OAuth secrets with the Worker; fix the callback docs (#34)
+
+
 ## [0.1.9] - 2026-09-29
 
 - docs: add AGENTS.md with load-bearing invariants; CLAUDE.md as signpost (#33)
